@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Shelf</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <header class="titlebar" data-tauri-drag-region>
+      <span class="title" data-tauri-drag-region>Shelf <span id="count" data-tauri-drag-region></span></span>
+      <div class="actions">
+        <button id="mode" class="mode" title="ドラッグで出したときの動作（Alt / Option を押しながらで一時的に反転）"></button>
+        <button id="clear" class="icon-btn" title="すべて棚から外す（ファイルは消えません）">
+          <svg viewBox="0 0 16 16"><path d="M3 4h10M6.5 4V2.75h3V4M4.5 4l.6 9h5.8l.6-9" /></svg>
+        </button>
+        <button id="hide" class="icon-btn" title="隠す（トレイ / メニューバーから再表示）">
+          <svg viewBox="0 0 16 16"><path d="M4 8h8" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="shelf">
+      <ul id="list"></ul>
+      <div id="empty" class="empty">
+        <svg viewBox="0 0 48 48"><path d="M24 8v22M15 21l9 9 9-9M8 34v6h32v-6" /></svg>
+        <p>ここにファイルをドロップ</p>
+        <small>あとで目的の場所へドラッグして移動できます</small>
+      </div>
+      <div id="drop-overlay" class="drop-overlay"><span>ドロップして棚に置く</span></div>
+    </main>
+
+    <footer id="footer">
+      <div id="drag-all" class="drag-all" title="棚のファイルをまとめてドラッグ">
+        <svg viewBox="0 0 16 16"><path d="M3 5h10M3 8h10M3 11h10" /></svg>
+        <span id="drag-all-label"></span>
+      </div>
+    </footer>
+  </body>
+</html>
