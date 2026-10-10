@@ -2,6 +2,10 @@
 
 リリースは GitHub Actions の shelf ワークフローを `release` にチェックを入れて手動実行するか、`shelf-v<バージョン>` のタグを push すると作成されます。本文はこのファイルの該当バージョンの節から取られます。
 
+## 未リリース
+
+- 配布物を整理: macOS は Apple Silicon（arm64）専用の `.dmg`、Windows は `-setup.exe` のみ（`.msi` は廃止）
+
 ## 0.1.0
 
 最初のリリースです。
