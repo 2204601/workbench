@@ -19,19 +19,24 @@ Intel Mac 向けの版は配布していません。
 
 ### 初回起動
 
-コード署名をしていないため、初回は OS の警告が出ます。
+署名（Apple Developer ID / Windows コード署名）なしのビルドなので、**初回インストール時だけ**警告が出ます。
 
-- **macOS**: `Shelf.app` を右クリック →「開く」→ 確認ダイアログで「開く」。「壊れているため開けません」と出る場合は、ターミナルで次を実行してから開いてください。
-
-  ```sh
-  xattr -cr /Applications/Shelf.app
-  ```
-
-- **Windows**: SmartScreen の画面で「詳細情報」→「実行」。
+- **macOS**: `.dmg` を開いて `Shelf.app` を「アプリケーション」へコピー → 起動すると「開発元を検証できない」と出るので「完了」→ **システム設定 › プライバシーとセキュリティ** の下にある「このまま開く」を押します。
+  ターミナルで `xattr -dr com.apple.quarantine /Applications/Shelf.app` を実行しても構いません。
+- **Windows**: `-setup.exe` を実行 → SmartScreen が出たら「詳細情報」→「実行」。
 
 ### アップデート
 
-自動アップデートはありません。新しい版をダウンロードして上書きインストールしてください。棚の中身はそのまま残ります。
+2 回目以降はアプリ内で更新します（0.1.3 から。0.1.2 以前を使っている場合は、一度だけ新しい版を上書きインストールしてください）。
+
+- 起動から数秒後に新しいバージョンを確認し、あればダイアログで知らせます（「更新して再起動」で適用）
+- 手動で確認するには、メニューバー / タスクトレイのアイコンを右クリック →「アップデートを確認…」
+- ダウンロード中の進み具合は、同じメニューの項目に表示されます
+- 棚の中身はそのまま残ります
+
+会社のネットワークなどでプロキシが必要な場合は、OS のプロキシ設定（自動プロキシ設定の PAC を含む）をそのまま使います。
+
+アプリ自身が書き出したファイルには macOS の quarantine 属性が付かないので、この経路で更新すると Gatekeeper / SmartScreen の警告は出ません。更新ファイルは Tauri Updater の鍵（minisign）で署名されていて、アプリ側の公開鍵と一致しないものは適用されません。
 
 ## 使い方
 
@@ -73,7 +78,7 @@ Shelf のアイテムを、移動先のフォルダやアプリへドラッグ�
 | ⌘/Ctrl + A | すべて選択 |
 | Esc | 選択を解除 |
 | ヘッダーの「—」 | ウィンドウを隠す（次にドラッグすると出てきます） |
-| メニューバー / タスクトレイのアイコン | クリックで表示・非表示。右クリックのメニューから終了 |
+| メニューバー / タスクトレイのアイコン | クリックで表示・非表示。右クリックのメニューから「アップデートを確認…」と終了 |
 
 棚の最後のアイテムを出し終える（または棚を空にする）と、ウィンドウは自動で隠れます。棚にアイテムがある状態で起動したときは、最初から表示されます。
 
@@ -120,6 +125,17 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
 
 作成したインストーラは `src-tauri/target/release/bundle/` に出力されます。
 
+`npm run tauri build` にはアプリ内アップデート用の署名鍵が要ります（`createUpdaterArtifacts` が有効なため）。鍵なしでインストーラだけ作るときは、更新ファイルを作らない設定を足します。
+
+```sh
+TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/image-library.key)" npm run tauri build
+# 鍵なし
+echo '{"bundle":{"createUpdaterArtifacts":false}}' > /tmp/no-updater.json
+npm run tauri build -- --config /tmp/no-updater.json
+```
+
+開発モード（`npm run tauri dev`）では起動時のアップデート確認はしません（トレイの「アップデートを確認…」は動きます）。
+
 ### 構成
 
 | パス | 役割 |
@@ -128,6 +144,8 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
 | `src/main.ts` | 画面の動作。ドロップの受け取り、選択、ドラッグで出す処理 |
 | `src-tauri/src/shelf.rs` | 棚のデータ（パスの一覧）と JSON への保存。ユニットテストもここ |
 | `src-tauri/src/lib.rs` | 画面から呼ぶコマンド、トレイアイコン、ウィンドウの配置 |
+| `src-tauri/src/update.rs` | アプリ内アップデート（起動時の確認、トレイの「アップデートを確認…」、ダイアログ） |
+| `src-tauri/src/proxy.rs` | OS のプロキシ設定（PAC を含む）を調べる。アップデートの確認とダウンロードに使う |
 | `src-tauri/src/drag_watch.rs` | ドラッグ中に棚を出す処理（macOS のドラッグ開始検知、ドラッグ終了の判定） |
 | `edge.html`, `src/edge.ts` | 画面右端の細いウィンドウ。ドラッグが触れたら棚を出す |
 | `src-tauri/tauri.conf.json` | アプリ名・バージョン・ウィンドウ設定・作るインストーラの種類 |
@@ -139,6 +157,8 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
 ### CI
 
 `shelf/` 以下か `.github/workflows/shelf.yml` が変わると、GitHub Actions で macOS（Apple Silicon）と Windows のテストとビルドが走ります。作られたインストーラは、実行結果ページの Artifacts からダウンロードできます。
+
+署名鍵の Secrets（下記）が使えないとき（フォークからの PR など）は、アップデート用のファイルを作らずにインストーラだけをビルドします。
 
 ### リリース手順
 
@@ -154,6 +174,18 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
 
 - 同じバージョンのタグがすでにある場合は失敗します（先にバージョンを上げてください）
 - `CHANGELOG.md` に該当バージョンの節がない場合も失敗します
+- アップデート用のファイル（署名）がない場合も失敗します（Secrets を確認してください）
+
+### アプリ内アップデートの仕組み
+
+リリースには、インストーラのほかにアプリ内アップデート用のファイルが添付されます。
+
+- `Shelf_<バージョン>_aarch64.dmg` / `Shelf_<バージョン>_x64-setup.exe`：初回インストール用
+- `Shelf.app.tar.gz` と `.sig`、`-setup.exe` の `.sig`、`latest.json`：アプリ内アップデート用
+
+インストール済みのアプリは `https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json` を見ます（`tauri.conf.json` の `plugins.updater.endpoints`）。このリポジトリには他のツールのリリースも並ぶため、image-library のように `releases/latest` は使えません。そこでリリースのたびに、`shelf-updater` という固定のリリース（プレリリース扱い）の `latest.json` を新しい版のものに置き換えています。**`shelf-updater` のリリースとタグは消さないでください**（配布済みのアプリが更新を見つけられなくなります）。
+
+更新ファイルの署名鍵は GitHub Actions の Secrets に置きます（`TAURI_SIGNING_PRIVATE_KEY`：秘密鍵ファイルの中身、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：パスワード、なければ空）。鍵は image-library と共通で（`~/.tauri/image-library.key`）、対応する公開鍵は `tauri.conf.json` の `plugins.updater.pubkey` です。**秘密鍵を失うと配布済みのアプリに更新を届けられなくなる**ので、必ずバックアップを取ってください。
 
 ## 今後の候補
 

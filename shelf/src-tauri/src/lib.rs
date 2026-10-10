@@ -1,11 +1,13 @@
 mod drag_watch;
+mod proxy;
 mod shelf;
+mod update;
 
 use std::path::PathBuf;
 
 use shelf::{Shelf, ShelfItem};
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
@@ -167,11 +169,22 @@ fn create_edge_strip(app: &AppHandle) -> tauri::Result<()> {
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let toggle = MenuItem::with_id(app, "toggle", "表示 / 非表示", true, None::<&str>)?;
+    let update = MenuItem::with_id(app, "update", update::MENU_LABEL, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "終了", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&toggle, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &toggle,
+            &PredefinedMenuItem::separator(app)?,
+            &update,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
+    app.manage(update::MenuEntry(update));
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Shelf")
+        .tooltip(format!("Shelf v{}", app.package_info().version))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -180,6 +193,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                     toggle_window(&window);
                 }
             }
+            "update" => update::check(app, true),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -207,6 +221,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Menu-bar utility on macOS: no Dock icon, just the tray.
             #[cfg(target_os = "macos")]
@@ -227,6 +243,7 @@ pub fn run() {
 
             setup_tray(app.handle())?;
             create_edge_strip(app.handle())?;
+            update::check_soon(app.handle());
             #[cfg(target_os = "macos")]
             drag_watch::macos::install(app.handle().clone());
 
