@@ -1,6 +1,6 @@
 [package]
 name = "shelf"
-version = "0.1.1"
+version = "0.1.2"
 description = "A tiny drop shelf for moving files around"
 edition = "2021"
 
