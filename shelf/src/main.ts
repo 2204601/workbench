@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
@@ -369,6 +370,8 @@ document.addEventListener("keydown", (e) => {
 
 // Files may have been moved or deleted while we were in the background.
 window.addEventListener("focus", () => void refresh());
+// Files dropped on the edge strip land on the shelf without going through here.
+void listen("shelf-changed", () => void refresh());
 
 render();
 void refresh();

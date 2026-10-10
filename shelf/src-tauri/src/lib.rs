@@ -1,3 +1,4 @@
+mod drag_watch;
 mod shelf;
 
 use std::path::PathBuf;
@@ -6,7 +7,8 @@ use shelf::{Shelf, ShelfItem};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, PhysicalPosition, State, WebviewWindow, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -39,26 +41,55 @@ fn add_paths(
     paths: Vec<PathBuf>,
 ) -> CmdResult<Vec<ShelfItem>> {
     let added = shelf.add(&paths).map_err(err)?;
+    if !added.is_empty() {
+        drag_watch::note_drop();
+    }
     allow_thumbnails(&app, added);
+    // Files can also be dropped on the edge strip; let the shelf catch up.
+    let _ = app.emit_to("main", "shelf-changed", ());
     Ok(shelf.list())
 }
 
 #[tauri::command]
-fn remove_items(shelf: State<Shelf>, paths: Vec<String>) -> CmdResult<Vec<ShelfItem>> {
+fn remove_items(
+    app: AppHandle,
+    shelf: State<Shelf>,
+    paths: Vec<String>,
+) -> CmdResult<Vec<ShelfItem>> {
     shelf.remove(&paths).map_err(err)?;
-    Ok(shelf.list())
+    Ok(hide_if_empty(&app, shelf.list()))
 }
 
 #[tauri::command]
-fn prune_missing(shelf: State<Shelf>, paths: Vec<String>) -> CmdResult<Vec<ShelfItem>> {
+fn prune_missing(
+    app: AppHandle,
+    shelf: State<Shelf>,
+    paths: Vec<String>,
+) -> CmdResult<Vec<ShelfItem>> {
     shelf.prune_missing(&paths).map_err(err)?;
-    Ok(shelf.list())
+    Ok(hide_if_empty(&app, shelf.list()))
 }
 
 #[tauri::command]
-fn clear_items(shelf: State<Shelf>) -> CmdResult<Vec<ShelfItem>> {
+fn clear_items(app: AppHandle, shelf: State<Shelf>) -> CmdResult<Vec<ShelfItem>> {
     shelf.clear().map_err(err)?;
-    Ok(shelf.list())
+    Ok(hide_if_empty(&app, shelf.list()))
+}
+
+#[tauri::command]
+fn edge_drag_enter(app: AppHandle) {
+    drag_watch::drag_reached_edge(&app);
+}
+
+/// The shelf gets out of the way once its last item has been taken out; the
+/// next drag brings it back.
+fn hide_if_empty(app: &AppHandle, items: Vec<ShelfItem>) -> Vec<ShelfItem> {
+    if items.is_empty() {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.hide();
+        }
+    }
+    items
 }
 
 #[tauri::command]
@@ -95,6 +126,43 @@ fn dock_to_right_edge(window: &WebviewWindow) -> tauri::Result<()> {
     let x = area.position.x + area.size.width as i32 - size.width as i32 - margin;
     let y = area.position.y + (area.size.height as i32 - size.height as i32) / 2;
     window.set_position(PhysicalPosition::new(x, y))
+}
+
+/// Creates the thin strip along the right edge of the primary screen that
+/// brings up the shelf when a drag touches it.
+fn create_edge_strip(app: &AppHandle) -> tauri::Result<()> {
+    const WIDTH: f64 = 4.0;
+    let Some(monitor) = app.primary_monitor()? else {
+        return Ok(());
+    };
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let (x, y) = (
+        area.position.x as f64 / scale,
+        area.position.y as f64 / scale,
+    );
+    let (w, h) = (
+        area.size.width as f64 / scale,
+        area.size.height as f64 / scale,
+    );
+    // Middle half of the edge: easy to hit, leaves the corners alone.
+    let height = (h / 2.0).round();
+
+    WebviewWindowBuilder::new(app, "edge", WebviewUrl::App("edge.html".into()))
+        .title("Shelf edge")
+        .inner_size(WIDTH, height)
+        .position(x + w - WIDTH, y + (h - height) / 2.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .visible_on_all_workspaces(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .focusable(false)
+        .build()?;
+    Ok(())
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -145,7 +213,9 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let store = app.path().app_data_dir()?.join("shelf.json");
+            let first_run = !store.exists();
             let shelf = Shelf::load(store);
+            let has_items = !shelf.list().is_empty();
             allow_thumbnails(
                 app.handle(),
                 shelf
@@ -156,10 +226,17 @@ pub fn run() {
             app.manage(shelf);
 
             setup_tray(app.handle())?;
+            create_edge_strip(app.handle())?;
+            #[cfg(target_os = "macos")]
+            drag_watch::macos::install(app.handle().clone());
 
             if let Some(window) = app.get_webview_window("main") {
                 let _ = dock_to_right_edge(&window);
-                window.show()?;
+                // Otherwise the shelf waits, hidden, for the next drag. It is
+                // shown on the very first launch so people see it exists.
+                if has_items || first_run {
+                    window.show()?;
+                }
             }
             Ok(())
         })
@@ -178,6 +255,7 @@ pub fn run() {
             clear_items,
             reveal_item,
             open_item,
+            edge_drag_enter,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Shelf edge</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        /* Not fully transparent so the strip still receives drags everywhere. */
+        background: rgba(0, 0, 0, 0.01);
+      }
+      #bar {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 2px;
+        border-radius: 1px;
+        background: rgba(74, 114, 240, 0.35);
+        transition: background 120ms, width 120ms;
+      }
+      #bar.active {
+        width: 4px;
+        background: rgba(74, 114, 240, 0.9);
+      }
+    </style>
+    <script type="module" src="/src/edge.ts"></script>
+  </head>
+  <body>
+    <div id="bar"></div>
+  </body>
+</html>
