@@ -10,6 +10,11 @@ on:
   pull_request:
     paths: ["shelf/**", ".github/workflows/shelf.yml"]
   workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a GitHub Release for the version in tauri.conf.json (creates the shelf-v<version> tag)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,7 +66,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/shelf-v')
+    if: startsWith(github.ref, 'refs/tags/shelf-v') || (github.event_name == 'workflow_dispatch' && inputs.release)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -69,14 +74,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check tag matches app version and extract notes
+      - name: Resolve tag, check version and extract notes
+        id: meta
         run: |
-          version="${GITHUB_REF_NAME#shelf-v}"
-          app_version="$(jq -r .version shelf/src-tauri/tauri.conf.json)"
-          if [ "$version" != "$app_version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match tauri.conf.json version $app_version"
-            exit 1
+          version="$(jq -r .version shelf/src-tauri/tauri.conf.json)"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "$tag" != "shelf-v$version" ]; then
+              echo "::error::Tag $tag does not match tauri.conf.json version $version"
+              exit 1
+            fi
+          else
+            # Manual run: the release step creates the tag on this commit.
+            tag="shelf-v$version"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+              echo "::error::Tag $tag already exists; bump the version before releasing again"
+              exit 1
+            fi
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           awk -v v="$version" '$0 ~ "^## " { f = ($2 == v); next } f' shelf/CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then
             echo "::error::No '## $version' section in shelf/CHANGELOG.md"
@@ -90,7 +106,9 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          name: Shelf ${{ github.ref_name }}
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Shelf ${{ steps.meta.outputs.tag }}
           body_path: notes.md
           files: |
             bundles/**/*.dmg
