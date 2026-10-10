@@ -30,7 +30,7 @@ npm run tauri build    # インストーラを作成（src-tauri/target/release/
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-GitHub Actions（`.github/workflows/shelf.yml`）で macOS（Universal）と Windows のビルドが走り、`.dmg` / `.msi` / `.exe` が Artifacts に上がります。署名はしていないので、初回起動時は macOS なら右クリック →「開く」、Windows なら SmartScreen の「詳細情報」→「実行」で起動してください。
+GitHub Actions（`.github/workflows/shelf.yml`）で macOS（Universal）と Windows のビルドが走り、`.dmg` / `.msi` / `.exe` が Artifacts に上がります。`shelf-v0.1.0` のようなタグを push すると、同じビルドから GitHub Release が作られます（本文は `CHANGELOG.md` の該当バージョンの節。タグと `tauri.conf.json` のバージョンが一致しないと失敗します）。署名はしていないので、初回起動時は macOS なら右クリック →「開く」、Windows なら SmartScreen の「詳細情報」→「実行」で起動してください。
 
 ## 構成
 
