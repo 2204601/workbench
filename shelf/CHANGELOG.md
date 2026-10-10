@@ -2,9 +2,28 @@
 
 リリースは GitHub Actions の shelf ワークフローを `release` にチェックを入れて手動実行するか、`shelf-v<バージョン>` のタグを push すると作成されます。本文はこのファイルの該当バージョンの節から取られます。
 
-## 未リリース
+## 0.1.1
 
-- 配布物を整理: macOS は Apple Silicon（arm64）専用の `.dmg`、Windows は `-setup.exe` のみ（`.msi` は廃止）
+配布物を整理したリリースです。アプリの機能は 0.1.0 から変わっていません。
+
+### 変更点
+
+- macOS は Apple Silicon（M1 以降）専用になりました。Intel Mac 向けの版は配布しません
+- Windows は `-setup.exe` のみになりました（`.msi` は廃止）
+
+### ダウンロード
+
+| OS | ファイル |
+| --- | --- |
+| macOS（Apple Silicon） | `.dmg` |
+| Windows | `-setup.exe` |
+
+### 注意
+
+- コード署名をしていないため、初回起動時に警告が出ます。
+  - macOS: アプリを右クリック →「開く」。「壊れている」と表示される場合は、ターミナルで `xattr -cr /Applications/Shelf.app` を実行してから開いてください
+  - Windows: SmartScreen の画面で「詳細情報」→「実行」
+- 0.1.0 から入れ替える場合は、そのままインストールして上書きしてください（棚の中身は引き継がれます）
 
 ## 0.1.0
 
