@@ -18,11 +18,18 @@ tauri-plugin-drag = "2"
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# In-app updates (update.rs): the check, and the dialogs that offer it.
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSEvent", "NSPasteboard"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSApplication", "NSEvent", "NSPasteboard", "NSResponder"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString"] }
+# System proxy lookup (PAC) for the updater, see proxy.rs.
+core-foundation-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+# System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
