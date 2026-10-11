@@ -128,7 +128,7 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
 `npm run tauri build` にはアプリ内アップデート用の署名鍵が要ります（`createUpdaterArtifacts` が有効なため）。鍵なしでインストーラだけ作るときは、更新ファイルを作らない設定を足します。
 
 ```sh
-TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/image-library.key)" npm run tauri build
+TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/shelf.key)" npm run tauri build
 # 鍵なし
 echo '{"bundle":{"createUpdaterArtifacts":false}}' > /tmp/no-updater.json
 npm run tauri build -- --config /tmp/no-updater.json
@@ -185,7 +185,7 @@ npm run tauri build -- --config /tmp/no-updater.json
 
 インストール済みのアプリは `https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json` を見ます（`tauri.conf.json` の `plugins.updater.endpoints`）。このリポジトリには他のツールのリリースも並ぶため、image-library のように `releases/latest` は使えません。そこでリリースのたびに、`shelf-updater` という固定のリリース（プレリリース扱い）の `latest.json` を新しい版のものに置き換えています。**`shelf-updater` のリリースとタグは消さないでください**（配布済みのアプリが更新を見つけられなくなります）。
 
-更新ファイルの署名鍵は GitHub Actions の Secrets に置きます（`TAURI_SIGNING_PRIVATE_KEY`：秘密鍵ファイルの中身、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：パスワード、なければ空）。鍵は image-library と共通で（`~/.tauri/image-library.key`）、対応する公開鍵は `tauri.conf.json` の `plugins.updater.pubkey` です。**秘密鍵を失うと配布済みのアプリに更新を届けられなくなる**ので、必ずバックアップを取ってください。
+更新ファイルの署名鍵は GitHub Actions の Secrets に置きます（`TAURI_SIGNING_PRIVATE_KEY`：秘密鍵ファイルの中身、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：パスワード、なければ空）。鍵は Shelf 専用で（`~/.tauri/shelf.key`）、対応する公開鍵は `tauri.conf.json` の `plugins.updater.pubkey` です。**秘密鍵を失うと配布済みのアプリに更新を届けられなくなる**ので、必ずバックアップを取ってください。鍵の作り直しは `npx @tauri-apps/cli signer generate -w ~/.tauri/shelf.key`（作り直すと、それまでに配布した版には更新が届かなくなります）。
 
 ## 今後の候補
 
