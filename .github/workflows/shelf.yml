@@ -38,6 +38,11 @@ jobs:
       # matching public key is plugins.updater.pubkey in tauri.conf.json.
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # GitHub Actions sets CI=true, and then the bundler skips the AppleScript
+      # that lays out the .dmg window (large icons, app on the left and the
+      # Applications link on the right). tauri-action, which image-library
+      # uses, sets this by default.
+      TAURI_BUNDLER_DMG_IGNORE_CI: "true"
     defaults:
       run:
         working-directory: shelf
