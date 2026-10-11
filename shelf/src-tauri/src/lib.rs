@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use shelf::{Shelf, ShelfItem};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
@@ -186,7 +186,8 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip(format!("Shelf v{}", app.package_info().version))
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        // Any click opens the menu; showing / hiding the shelf is one of its items.
+        .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "toggle" => {
                 if let Some(window) = app.get_webview_window("main") {
@@ -196,18 +197,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             "update" => update::check(app, true),
             "quit" => app.exit(0),
             _ => {}
-        })
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                if let Some(window) = tray.app_handle().get_webview_window("main") {
-                    toggle_window(&window);
-                }
-            }
         });
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
