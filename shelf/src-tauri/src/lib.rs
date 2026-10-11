@@ -243,7 +243,7 @@ pub fn run() {
 
             setup_tray(app.handle())?;
             create_edge_strip(app.handle())?;
-            update::check_soon(app.handle());
+            update::check_periodically(app.handle());
             #[cfg(target_os = "macos")]
             drag_watch::macos::install(app.handle().clone());
 

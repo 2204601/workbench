@@ -5,13 +5,14 @@
 //! itself carry no quarantine attribute, so an update applied from here starts
 //! without that warning; only the first install still shows it.
 //!
-//! The check runs a few seconds after launch (release builds only) and from
-//! the tray menu. The tray menu item also shows the download's progress.
+//! The check runs a few seconds after launch and then once a day while the
+//! app keeps running (release builds only), and from the tray menu. The tray
+//! menu item also shows the download's progress.
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use tauri::{async_runtime::block_on, menu::MenuItem, AppHandle, Manager, Url, Wry};
@@ -28,21 +29,38 @@ const FEED: &str =
 
 pub const MENU_LABEL: &str = "アップデートを確認…";
 
+/// How often the app checks while it keeps running. Shelf lives in the menu
+/// bar and is rarely quit, so a check at launch alone could go stale for
+/// days. An update put off with "あとで" is offered again on the next one.
+const INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+
 /// Set while a check or a download is running.
 static BUSY: AtomicBool = AtomicBool::new(false);
 
 /// The tray menu item that starts a manual check.
 pub struct MenuEntry(pub MenuItem<Wry>);
 
-/// Checks a few seconds after launch, in release builds.
-pub fn check_soon(app: &AppHandle) {
+/// Checks a few seconds after launch and then every [`INTERVAL`], in release
+/// builds.
+pub fn check_periodically(app: &AppHandle) {
     if cfg!(debug_assertions) {
         return;
     }
     let app = app.clone();
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(4));
+        let mut last = SystemTime::now();
         check(&app, false);
+        loop {
+            // Measured on the wall clock, checked hourly: `thread::sleep` can
+            // stand still while the computer sleeps, so sleeping a whole day
+            // at once could take several days of laptop use to run out.
+            thread::sleep(Duration::from_secs(60 * 60));
+            if last.elapsed().map_or(true, |e| e >= INTERVAL) {
+                last = SystemTime::now();
+                check(&app, false);
+            }
+        }
     });
 }
 
