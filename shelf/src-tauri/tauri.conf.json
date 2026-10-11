@@ -52,7 +52,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDOEYwRjQ0RTJBQTU2MDQKUldRRVZxcmlSQStQZkttbkN4UmdGRkZpRUN5ZEI0OWxBUEtCcnJHL3gvQ2ZrelZ6T2VEK2hVMFUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwRkVBMTJBMUQ4RjA0RDEKUldUUkJJOGRLcUgrVUdvQm90SUEyaVFtQVBqd24zdnQydXAwTG1SM1YvN01hN3VFUmRWdWVsM3QK",
       "endpoints": ["https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json"],
       "windows": { "installMode": "passive" }
     }
