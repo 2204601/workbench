@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Renamer: a name field with the text cursor in it, and an arrow for "change". -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5b97ff"/>
+      <stop offset="1" stop-color="#2f6be6"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- old name (faint) -->
+  <rect x="200" y="250" width="440" height="150" rx="40" fill="#ffffff" fill-opacity="0.35"/>
+  <!-- arrow -->
+  <path d="M680 325 H740 Q790 325 790 375 V480" fill="none" stroke="#ffffff" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M725 430 L790 495 L855 430" fill="none" stroke="#ffffff" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- new name -->
+  <rect x="200" y="580" width="624" height="200" rx="48" fill="#ffffff"/>
+  <rect x="270" y="655" width="300" height="50" rx="25" fill="#2f6be6"/>
+  <!-- text cursor -->
+  <rect x="610" y="620" width="28" height="120" rx="14" fill="#1b1c1f"/>
+</svg>
