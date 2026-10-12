@@ -1,13 +1,16 @@
+mod clipboard;
 mod drag_watch;
+mod login_item;
 mod proxy;
 mod shelf;
+mod shortcut;
 mod update;
 
 use std::path::PathBuf;
 
 use shelf::{Shelf, ShelfItem};
 use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
@@ -36,20 +39,43 @@ fn list_items(shelf: State<Shelf>) -> Vec<ShelfItem> {
     shelf.list()
 }
 
+/// Puts `paths` on the shelf. Returns the shelf's new contents, and whether
+/// any of the paths could be added.
+fn add_to_shelf(app: &AppHandle, paths: &[PathBuf]) -> CmdResult<(Vec<ShelfItem>, bool)> {
+    let shelf = app.state::<Shelf>();
+    let added = shelf.add(paths).map_err(err)?;
+    let any = !added.is_empty();
+    allow_thumbnails(app, added);
+    // Files can also arrive from the edge strip or the shortcut; let the
+    // shelf catch up.
+    let _ = app.emit_to("main", "shelf-changed", ());
+    Ok((shelf.list(), any))
+}
+
 #[tauri::command]
-fn add_paths(
-    app: AppHandle,
-    shelf: State<Shelf>,
-    paths: Vec<PathBuf>,
-) -> CmdResult<Vec<ShelfItem>> {
-    let added = shelf.add(&paths).map_err(err)?;
-    if !added.is_empty() {
+fn add_paths(app: AppHandle, paths: Vec<PathBuf>) -> CmdResult<Vec<ShelfItem>> {
+    let (items, any) = add_to_shelf(&app, &paths)?;
+    if any {
         drag_watch::note_drop();
     }
-    allow_thumbnails(&app, added);
-    // Files can also be dropped on the edge strip; let the shelf catch up.
-    let _ = app.emit_to("main", "shelf-changed", ());
-    Ok(shelf.list())
+    Ok(items)
+}
+
+/// ⌘V / Ctrl+V on the shelf: puts the files copied in Finder / Explorer on it.
+#[tauri::command]
+fn add_clipboard_files(app: AppHandle) -> CmdResult<Vec<ShelfItem>> {
+    Ok(add_to_shelf(&app, &clipboard::file_paths())?.0)
+}
+
+/// Puts the copied files on the shelf and brings it up.
+fn paste_and_show(app: &AppHandle) {
+    if let Err(e) = add_to_shelf(app, &clipboard::file_paths()) {
+        eprintln!("paste: {e}");
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 #[tauri::command]
@@ -104,7 +130,10 @@ fn open_item(app: AppHandle, path: String) -> CmdResult<()> {
     app.opener().open_path(path, None::<&str>).map_err(err)
 }
 
-fn toggle_window(window: &WebviewWindow) {
+fn toggle_main_window(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
     if window.is_visible().unwrap_or(false) {
         let _ = window.hide();
     } else {
@@ -167,15 +196,34 @@ fn create_edge_strip(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let toggle = MenuItem::with_id(app, "toggle", "表示 / 非表示", true, None::<&str>)?;
+/// `has_shortcut`: whether the global shortcut could be registered, and so
+/// can be shown next to the item it stands for.
+fn setup_tray(app: &AppHandle, has_shortcut: bool) -> tauri::Result<()> {
+    let toggle = MenuItem::with_id(
+        app,
+        "toggle",
+        "表示 / 非表示",
+        true,
+        has_shortcut.then_some(shortcut::ACCELERATOR),
+    )?;
+    let paste = MenuItem::with_id(app, "paste", "コピーしたファイルを置く", true, None::<&str>)?;
+    let login = CheckMenuItem::with_id(
+        app,
+        "login",
+        login_item::MENU_LABEL,
+        true,
+        login_item::is_enabled(app),
+        None::<&str>,
+    )?;
     let update = MenuItem::with_id(app, "update", update::MENU_LABEL, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "終了", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[
             &toggle,
+            &paste,
             &PredefinedMenuItem::separator(app)?,
+            &login,
             &update,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -188,12 +236,10 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         // Any click opens the menu; showing / hiding the shelf is one of its items.
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "toggle" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    toggle_window(&window);
-                }
-            }
+        .on_menu_event(move |app, event| match event.id().as_ref() {
+            "toggle" => toggle_main_window(app),
+            "paste" => paste_and_show(app),
+            "login" => login_item::toggle(app, &login),
             "update" => update::check(app, true),
             "quit" => app.exit(0),
             _ => {}
@@ -212,6 +258,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(login_item::plugin())
+        .plugin(shortcut::plugin())
         .setup(|app| {
             // Menu-bar utility on macOS: no Dock icon, just the tray.
             #[cfg(target_os = "macos")]
@@ -230,7 +278,9 @@ pub fn run() {
             );
             app.manage(shelf);
 
-            setup_tray(app.handle())?;
+            login_item::enable_once(app.handle());
+            let has_shortcut = shortcut::register(app.handle());
+            setup_tray(app.handle(), has_shortcut)?;
             create_edge_strip(app.handle())?;
             update::check_periodically(app.handle());
             #[cfg(target_os = "macos")]
@@ -256,6 +306,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_items,
             add_paths,
+            add_clipboard_files,
             remove_items,
             prune_missing,
             clear_items,
