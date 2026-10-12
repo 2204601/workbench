@@ -57,14 +57,8 @@ pub struct Shelf {
 impl Shelf {
     /// Loads the shelf from `file`, starting empty if it is missing or unreadable.
     pub fn load(file: PathBuf) -> Self {
-        let items = fs::read(&file)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .unwrap_or_default();
-        Self {
-            file,
-            items: Mutex::new(items),
-        }
+        let items = fs::read(&file).ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
+        Self { file, items: Mutex::new(items) }
     }
 
     /// Returns the items, newest first, with `exists` refreshed.
@@ -87,30 +81,20 @@ impl Shelf {
     pub fn add(&self, paths: &[PathBuf]) -> io::Result<Vec<PathBuf>> {
         let mut items = self.items.lock().unwrap();
         let mut new: Vec<ShelfItem> = Vec::new();
-        for item in paths
-            .iter()
-            .filter_map(|path| ShelfItem::from_path(path).ok())
-        {
+        for item in paths.iter().filter_map(|path| ShelfItem::from_path(path).ok()) {
             if !new.iter().any(|seen| seen.path == item.path) {
                 new.push(item);
             }
         }
         let stack = (new.len() > 1).then(|| {
             // Unique even for two drops within the same millisecond.
-            let next = items
-                .iter()
-                .filter_map(|i| i.stack)
-                .max()
-                .map_or(0, |m| m + 1);
+            let next = items.iter().filter_map(|i| i.stack).max().map_or(0, |m| m + 1);
             now_millis().max(next)
         });
         items.retain(|existing| !new.iter().any(|item| item.path == existing.path));
         let added = new.iter().map(|item| PathBuf::from(&item.path)).collect();
         // The first dropped file ends up on top.
-        items.splice(
-            0..0,
-            new.into_iter().map(|item| ShelfItem { stack, ..item }),
-        );
+        items.splice(0..0, new.into_iter().map(|item| ShelfItem { stack, ..item }));
         self.save(&items)?;
         Ok(added)
     }
@@ -157,10 +141,7 @@ impl Shelf {
 }
 
 fn now_millis() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -199,18 +180,14 @@ mod tests {
         fs::write(&a, "a").unwrap();
         let store = dir.join("shelf.json");
 
-        Shelf::load(store.clone())
-            .add(std::slice::from_ref(&a))
-            .unwrap();
+        Shelf::load(store.clone()).add(std::slice::from_ref(&a)).unwrap();
         let reloaded = Shelf::load(store.clone());
         assert_eq!(reloaded.list().len(), 1);
         assert!(reloaded.list()[0].exists);
 
         fs::rename(&a, dir.join("moved.txt")).unwrap();
         assert!(!reloaded.list()[0].exists);
-        reloaded
-            .prune_missing(&[a.to_string_lossy().into_owned()])
-            .unwrap();
+        reloaded.prune_missing(&[a.to_string_lossy().into_owned()]).unwrap();
         assert!(Shelf::load(store).list().is_empty());
 
         fs::remove_dir_all(dir).unwrap();
@@ -230,7 +207,7 @@ mod tests {
 
         // Re-adding `a` with others pulls it into the new stack.
         shelf.add(&[b.clone(), a.clone()]).unwrap();
-        shelf.add(&[c.clone()]).unwrap();
+        shelf.add(std::slice::from_ref(&c)).unwrap();
         let list = shelf.list();
         let names: Vec<_> = list.iter().map(|i| i.name.as_str()).collect();
         assert_eq!(names, ["c.txt", "b.txt", "a.txt"]);
@@ -257,11 +234,7 @@ mod tests {
     fn loads_shelves_saved_before_stacks() {
         let dir = temp_dir("old");
         let store = dir.join("shelf.json");
-        fs::write(
-            &store,
-            r#"[{"path":"/x","name":"x","isDir":false,"size":1,"addedAt":1}]"#,
-        )
-        .unwrap();
+        fs::write(&store, r#"[{"path":"/x","name":"x","isDir":false,"size":1,"addedAt":1}]"#).unwrap();
         assert_eq!(Shelf::load(store).list()[0].stack, None);
         fs::remove_dir_all(dir).unwrap();
     }

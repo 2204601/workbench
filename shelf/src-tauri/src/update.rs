@@ -24,8 +24,7 @@ use crate::proxy;
 /// Same as `plugins.updater.endpoints` in tauri.conf.json. Other tools'
 /// releases share this repository, so the feed lives on its own fixed release
 /// instead of `releases/latest`.
-const FEED: &str =
-    "https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json";
+const FEED: &str = "https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json";
 
 pub const MENU_LABEL: &str = "アップデートを確認…";
 
@@ -79,18 +78,12 @@ pub fn check(app: &AppHandle, manual: bool) {
             Ok(Some(update)) => offer(&app, update),
             Ok(None) if manual => {
                 let version = app.package_info().version.to_string();
-                show(
-                    &app,
-                    MessageDialogKind::Info,
-                    format!("Shelf v{version} は最新版です。"),
-                );
+                show(&app, MessageDialogKind::Info, format!("Shelf v{version} は最新版です。"));
             }
             Ok(None) => {}
-            Err(e) if manual => show(
-                &app,
-                MessageDialogKind::Error,
-                format!("アップデートを確認できませんでした。\n{e}"),
-            ),
+            Err(e) if manual => {
+                show(&app, MessageDialogKind::Error, format!("アップデートを確認できませんでした。\n{e}"))
+            }
             Err(e) => eprintln!("update check failed: {e}"),
         }
         set_menu(&app, MENU_LABEL, true);
@@ -110,10 +103,7 @@ fn find(app: &AppHandle) -> tauri_plugin_updater::Result<Option<Update>> {
 }
 
 fn offer(app: &AppHandle, update: Update) {
-    let mut text = format!(
-        "新しいバージョン v{} があります（現在 v{}）。",
-        update.version, update.current_version
-    );
+    let mut text = format!("新しいバージョン v{} があります（現在 v{}）。", update.version, update.current_version);
     if let Some(notes) = update.body.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         text.push_str("\n\n");
         text.extend(notes.chars().take(600));
@@ -125,10 +115,7 @@ fn offer(app: &AppHandle, update: Update) {
         .message(text)
         .title("アップデート")
         .kind(MessageDialogKind::Info)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "更新して再起動".into(),
-            "あとで".into(),
-        ))
+        .buttons(MessageDialogButtons::OkCancelCustom("更新して再起動".into(), "あとで".into()))
         .blocking_show();
     if !ok {
         return;
@@ -162,12 +149,7 @@ fn offer(app: &AppHandle, update: Update) {
 
 fn show(app: &AppHandle, kind: MessageDialogKind, text: String) {
     bring_to_front(app);
-    app.dialog()
-        .message(text)
-        .title("アップデート")
-        .kind(kind)
-        .buttons(MessageDialogButtons::Ok)
-        .blocking_show();
+    app.dialog().message(text).title("アップデート").kind(kind).buttons(MessageDialogButtons::Ok).blocking_show();
 }
 
 fn set_menu(app: &AppHandle, text: &str, enabled: bool) {

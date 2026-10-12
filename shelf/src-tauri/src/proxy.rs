@@ -21,9 +21,10 @@ pub fn for_url(url: &str) -> Option<String> {
 pub fn pick(list: &str) -> Option<String> {
     let entries: Vec<&str> = list.split([';', ' ']).map(str::trim).filter(|s| !s.is_empty()).collect();
     let scheme_specific = entries.iter().find_map(|e| e.strip_prefix("https="));
-    let any = entries.iter().copied().find(|e| {
-        !e.contains('=') && !e.eq_ignore_ascii_case("PROXY") && !e.eq_ignore_ascii_case("DIRECT")
-    });
+    let any = entries
+        .iter()
+        .copied()
+        .find(|e| !e.contains('=') && !e.eq_ignore_ascii_case("PROXY") && !e.eq_ignore_ascii_case("DIRECT"));
     let first = match entries.first() {
         // PAC style: a leading DIRECT means "no proxy".
         Some(e) if e.eq_ignore_ascii_case("DIRECT") => return None,
@@ -179,7 +180,9 @@ mod imp {
 
     pub fn for_url(url: &str) -> Option<String> {
         let s = cfstr(url);
-        let target = Owned(unsafe { CFURLCreateWithString(kCFAllocatorDefault, s.0 as CFStringRef, std::ptr::null()) } as CFTypeRef);
+        let target =
+            Owned(unsafe { CFURLCreateWithString(kCFAllocatorDefault, s.0 as CFStringRef, std::ptr::null()) }
+                as CFTypeRef);
         if target.0.is_null() {
             return None;
         }
@@ -187,7 +190,9 @@ mod imp {
         if settings.0.is_null() {
             return None;
         }
-        let list = Owned(unsafe { CFNetworkCopyProxiesForURL(target.0 as CFURLRef, settings.0 as CFDictionaryRef) } as CFTypeRef);
+        let list = Owned(
+            unsafe { CFNetworkCopyProxiesForURL(target.0 as CFURLRef, settings.0 as CFDictionaryRef) } as CFTypeRef
+        );
         if list.0.is_null() {
             return None;
         }
@@ -237,7 +242,11 @@ mod imp {
         }
         let proxy = take(info.lpszProxy);
         let _ = take(info.lpszProxyBypass);
-        Some(if info.dwAccessType == WINHTTP_ACCESS_TYPE_NAMED_PROXY { proxy.and_then(|p| super::pick(&p)) } else { None })
+        Some(if info.dwAccessType == WINHTTP_ACCESS_TYPE_NAMED_PROXY {
+            proxy.and_then(|p| super::pick(&p))
+        } else {
+            None
+        })
     }
 
     pub fn for_url(url: &str) -> Option<String> {

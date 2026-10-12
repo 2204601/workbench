@@ -33,11 +33,11 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2.9.2
         with:
           workspaces: renamer/src-tauri -> target
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -45,7 +45,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -64,9 +64,9 @@ jobs:
   test-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2.9.2
         with:
           workspaces: renamer/src-tauri -> target
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -96,8 +96,8 @@ jobs:
       # that lays out the .dmg window.
       TAURI_BUNDLER_DMG_IGNORE_CI: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -105,7 +105,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust-targets }}
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2.9.2
         with:
           workspaces: renamer/src-tauri -> target
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -121,7 +121,7 @@ jobs:
             no_updater=(--config "$RUNNER_TEMP/no-updater.json")
           fi
           npm run tauri build -- ${{ matrix.build-args }} "${no_updater[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: renamer-${{ runner.os }}
           path: |
@@ -142,7 +142,7 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve tag, check version and extract notes
         id: meta
@@ -170,7 +170,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: bundles
           merge-multiple: true
@@ -209,7 +209,7 @@ jobs:
             }' > latest.json
           cat latest.json
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           target_commitish: ${{ github.sha }}
@@ -227,7 +227,7 @@ jobs:
       # (plugins.updater.endpoints in tauri.conf.json). Other tools release
       # from this repository too, so releases/latest can't be used. Runs after
       # the release above, so the files it points to are already there.
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: renamer-updater
           target_commitish: ${{ github.sha }}

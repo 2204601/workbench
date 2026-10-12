@@ -26,26 +26,24 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 pub fn register(app: &AppHandle) -> bool {
     let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyS);
     let last_press = Mutex::new(None::<Instant>);
-    let result = app
-        .global_shortcut()
-        .on_shortcut(shortcut, move |app, _, event| {
-            if event.state() != ShortcutState::Pressed {
-                return;
-            }
-            let now = Instant::now();
-            let double = {
-                let mut last = last_press.lock().unwrap();
-                let double = last.is_some_and(|at| now.duration_since(at) < DOUBLE_PRESS);
-                // A third press starts over rather than counting as another double.
-                *last = (!double).then_some(now);
-                double
-            };
-            if double {
-                crate::paste_and_show(app);
-            } else {
-                crate::toggle_main_window(app);
-            }
-        });
+    let result = app.global_shortcut().on_shortcut(shortcut, move |app, _, event| {
+        if event.state() != ShortcutState::Pressed {
+            return;
+        }
+        let now = Instant::now();
+        let double = {
+            let mut last = last_press.lock().unwrap();
+            let double = last.is_some_and(|at| now.duration_since(at) < DOUBLE_PRESS);
+            // A third press starts over rather than counting as another double.
+            *last = (!double).then_some(now);
+            double
+        };
+        if double {
+            crate::paste_and_show(app);
+        } else {
+            crate::toggle_main_window(app);
+        }
+    });
     match result {
         Ok(()) => true,
         Err(e) => {

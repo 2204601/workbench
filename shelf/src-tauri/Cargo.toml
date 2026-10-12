@@ -24,6 +24,9 @@ tauri-plugin-dialog = "2"
 # Launch at login, and the show / hide shortcut (lib.rs).
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
+# A second launch (by hand while the login item already runs) only brings up
+# the shelf, instead of a second tray icon fighting over the shortcut.
+tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
