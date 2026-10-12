@@ -3,8 +3,9 @@
 //! Two triggers bring the shelf up mid-drag:
 //! - everywhere: a drag touching the thin strip window at the screen edge
 //!   (see `edge.html`), which calls [`drag_reached_edge`];
-//! - macOS only: any file drag starting in another app, detected by
-//!   watching the system drag pasteboard (see [`macos::install`]).
+//! - macOS only: any file drag starting in another app (Finder, the Dock,
+//!   …), detected by watching the system drag pasteboard (see
+//!   [`macos::install`]).
 //!
 //! Either way the shelf is shown without taking focus, and if it was hidden
 //! before and the drag ends without anything being dropped on it, it is
@@ -93,45 +94,64 @@ fn primary_button_down() -> bool {
 
 #[cfg(target_os = "macos")]
 pub mod macos {
-    use std::{cell::Cell, ptr::NonNull};
+    use std::{thread, time::Duration};
 
-    use block2::RcBlock;
-    use objc2_app_kit::{
-        NSEvent, NSEventMask, NSPasteboard, NSPasteboardNameDrag, NSPasteboardTypeFileURL,
-    };
+    use objc2::rc::autoreleasepool;
+    use objc2_app_kit::{NSPasteboard, NSPasteboardNameDrag};
     use tauri::AppHandle;
 
-    /// Watches mouse drags in other apps and shows the shelf as soon as one
-    /// of them starts dragging files. Must be called on the main thread.
+    /// How often the mouse button is checked.
+    const POLL: Duration = Duration::from_millis(100);
+
+    /// Watches for file drags starting in other apps and shows the shelf as
+    /// soon as one does.
     ///
     /// Every new drag session writes to the shared drag pasteboard, so a
-    /// change in its `changeCount` during a mouse drag marks a drag start.
-    /// Only the pasteboard's types are inspected, never its contents.
+    /// change in its `changeCount` while the mouse button is held marks a
+    /// drag start. Only the pasteboard's types are inspected, never its
+    /// contents.
+    ///
+    /// This polls rather than listening for other apps' mouse-dragged
+    /// events, which did not catch every drag: one out of a Dock stack never
+    /// brought up the shelf. Shelf's own drags are seen too, but the shelf
+    /// is already showing then, so they change nothing.
     pub fn install(app: AppHandle) {
-        let drag_pasteboard = NSPasteboard::pasteboardWithName(unsafe { NSPasteboardNameDrag });
-        let last_change = Cell::new(drag_pasteboard.changeCount());
-
-        let handler = RcBlock::new(move |_event: NonNull<NSEvent>| {
-            let change = drag_pasteboard.changeCount();
-            if change == last_change.get() {
-                return;
-            }
-            last_change.set(change);
-            let has_files = drag_pasteboard.types().is_some_and(|types| {
-                types
-                    .iter()
-                    .any(|t| &*t == unsafe { NSPasteboardTypeFileURL })
-            });
-            if has_files {
-                super::on_drag_started(&app);
+        thread::spawn(move || {
+            let drag_pasteboard = NSPasteboard::pasteboardWithName(unsafe { NSPasteboardNameDrag });
+            let mut last_change = drag_pasteboard.changeCount();
+            let mut was_down = false;
+            loop {
+                thread::sleep(POLL);
+                // This thread has no run loop to drain autoreleased objects.
+                autoreleasepool(|_| {
+                    let down = super::primary_button_down();
+                    if down {
+                        let change = drag_pasteboard.changeCount();
+                        if change != last_change {
+                            last_change = change;
+                            if has_files(&drag_pasteboard) {
+                                super::on_drag_started(&app);
+                            }
+                        }
+                    } else if was_down {
+                        // A drag too quick to catch while the button was held
+                        // must not count as one at the next click.
+                        last_change = drag_pasteboard.changeCount();
+                    }
+                    was_down = down;
+                });
             }
         });
+    }
 
-        // The monitor lives for the rest of the process, so it is leaked on
-        // purpose rather than kept around to be removed later.
-        std::mem::forget(NSEvent::addGlobalMonitorForEventsMatchingMask_handler(
-            NSEventMask::LeftMouseDragged,
-            &handler,
-        ));
+    fn has_files(pasteboard: &NSPasteboard) -> bool {
+        pasteboard.types().is_some_and(|types| {
+            types.iter().any(|t| {
+                // Some sources, such as the Dock, may only declare the
+                // legacy file-name list.
+                let t = t.to_string();
+                t == "public.file-url" || t == "NSFilenamesPboardType"
+            })
+        })
     }
 }
