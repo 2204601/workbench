@@ -362,6 +362,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     for (const i of items) selected.add(i.path);
     render();
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "v") {
+    // Files copied in Finder / Explorer; the webview cannot see their paths.
+    e.preventDefault();
+    void call("add_clipboard_files");
   } else if (e.key === "Escape") {
     selected.clear();
     render();

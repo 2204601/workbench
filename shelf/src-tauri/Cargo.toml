@@ -1,6 +1,6 @@
 [package]
 name = "shelf"
-version = "0.1.3"
+version = "0.1.4"
 description = "A tiny drop shelf for moving files around"
 edition = "2021"
 
@@ -21,15 +21,18 @@ serde_json = "1"
 # In-app updates (update.rs): the check, and the dialogs that offer it.
 tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
+# Launch at login, and the show / hide shortcut (lib.rs).
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSApplication", "NSEvent", "NSPasteboard", "NSResponder"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSApplication", "NSEvent", "NSPasteboard", "NSPasteboardItem", "NSResponder"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString", "NSURL"] }
 # System proxy lookup (PAC) for the updater, see proxy.rs.
 core-foundation-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Ole", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 # System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
