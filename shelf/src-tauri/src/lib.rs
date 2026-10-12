@@ -12,8 +12,7 @@ use shelf::{Shelf, ShelfItem};
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -79,21 +78,13 @@ fn paste_and_show(app: &AppHandle) {
 }
 
 #[tauri::command]
-fn remove_items(
-    app: AppHandle,
-    shelf: State<Shelf>,
-    paths: Vec<String>,
-) -> CmdResult<Vec<ShelfItem>> {
+fn remove_items(app: AppHandle, shelf: State<Shelf>, paths: Vec<String>) -> CmdResult<Vec<ShelfItem>> {
     shelf.remove(&paths).map_err(err)?;
     Ok(hide_if_empty(&app, shelf.list()))
 }
 
 #[tauri::command]
-fn prune_missing(
-    app: AppHandle,
-    shelf: State<Shelf>,
-    paths: Vec<String>,
-) -> CmdResult<Vec<ShelfItem>> {
+fn prune_missing(app: AppHandle, shelf: State<Shelf>, paths: Vec<String>) -> CmdResult<Vec<ShelfItem>> {
     shelf.prune_missing(&paths).map_err(err)?;
     Ok(hide_if_empty(&app, shelf.list()))
 }
@@ -174,14 +165,8 @@ fn create_edge_strip(app: &AppHandle) -> tauri::Result<()> {
     };
     let scale = monitor.scale_factor();
     let area = monitor.work_area();
-    let (x, y) = (
-        area.position.x as f64 / scale,
-        area.position.y as f64 / scale,
-    );
-    let (w, h) = (
-        area.size.width as f64 / scale,
-        area.size.height as f64 / scale,
-    );
+    let (x, y) = (area.position.x as f64 / scale, area.position.y as f64 / scale);
+    let (w, h) = (area.size.width as f64 / scale, area.size.height as f64 / scale);
     // Middle half of the edge: easy to hit, leaves the corners alone.
     let height = (h / 2.0).round();
 
@@ -205,22 +190,11 @@ fn create_edge_strip(app: &AppHandle) -> tauri::Result<()> {
 /// `has_shortcut`: whether the global shortcut could be registered, and so
 /// can be shown next to the item it stands for.
 fn setup_tray(app: &AppHandle, has_shortcut: bool) -> tauri::Result<()> {
-    let toggle = MenuItem::with_id(
-        app,
-        "toggle",
-        "表示 / 非表示",
-        true,
-        has_shortcut.then_some(shortcut::ACCELERATOR),
-    )?;
+    let toggle =
+        MenuItem::with_id(app, "toggle", "表示 / 非表示", true, has_shortcut.then_some(shortcut::ACCELERATOR))?;
     let paste = MenuItem::with_id(app, "paste", "コピーしたファイルを置く", true, None::<&str>)?;
-    let login = CheckMenuItem::with_id(
-        app,
-        "login",
-        login_item::MENU_LABEL,
-        true,
-        login_item::is_enabled(app),
-        None::<&str>,
-    )?;
+    let login =
+        CheckMenuItem::with_id(app, "login", login_item::MENU_LABEL, true, login_item::is_enabled(app), None::<&str>)?;
     let update = MenuItem::with_id(app, "update", update::MENU_LABEL, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "終了", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -260,6 +234,13 @@ fn setup_tray(app: &AppHandle, has_shortcut: bool) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // First, so a second launch exits before setting anything else up.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -275,13 +256,7 @@ pub fn run() {
             let first_run = !store.exists();
             let shelf = Shelf::load(store);
             let has_items = !shelf.list().is_empty();
-            allow_thumbnails(
-                app.handle(),
-                shelf
-                    .list()
-                    .into_iter()
-                    .map(|item| PathBuf::from(item.path)),
-            );
+            allow_thumbnails(app.handle(), shelf.list().into_iter().map(|item| PathBuf::from(item.path)));
             app.manage(shelf);
 
             login_item::enable_once(app.handle());

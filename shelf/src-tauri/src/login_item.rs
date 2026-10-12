@@ -58,11 +58,7 @@ fn installed() -> bool {
 /// Flips launch at login from the tray menu, then shows the actual state.
 pub fn toggle(app: &AppHandle, item: &CheckMenuItem<Wry>) {
     let autolaunch = app.autolaunch();
-    let result = if is_enabled(app) {
-        autolaunch.disable()
-    } else {
-        autolaunch.enable()
-    };
+    let result = if is_enabled(app) { autolaunch.disable() } else { autolaunch.enable() };
     if let Err(e) = result {
         eprintln!("launch at login: {e}");
     }

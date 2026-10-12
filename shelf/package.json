@@ -7,15 +7,20 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml && tsc --noEmit",
+    "lint": "eslint src && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings"
   },
   "dependencies": {
     "@crabnebula/tauri-plugin-drag": "^2.1.0",
     "@tauri-apps/api": "^2.12.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@tauri-apps/cli": "^2.12.1",
+    "eslint": "^9.39.5",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.1",
     "vite": "^7.3.0"
   }
 }

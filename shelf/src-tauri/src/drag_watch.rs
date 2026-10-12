@@ -79,11 +79,7 @@ fn primary_button_down() -> bool {
         WindowsAndMessaging::{GetSystemMetrics, SM_SWAPBUTTON},
     };
     // GetAsyncKeyState reports physical buttons, so honour a swapped mouse.
-    let key = if unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0 {
-        VK_RBUTTON
-    } else {
-        VK_LBUTTON
-    };
+    let key = if unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0 { VK_RBUTTON } else { VK_LBUTTON };
     (unsafe { GetAsyncKeyState(key as i32) } as u16 & 0x8000) != 0
 }
 

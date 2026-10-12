@@ -150,7 +150,8 @@ cd shelf
 npm install
 npm run tauri dev      # 開発モードで起動（画面の変更はすぐ反映されます）
 npm run tauri build    # インストーラを作成（macOS は .app/.dmg、Windows は -setup.exe）
-cargo test --manifest-path src-tauri/Cargo.toml   # Rust のテスト
+npm test               # Rust のテストと型チェック
+npm run lint           # ESLint、cargo fmt --check、clippy（CI と同じ）
 ```
 
 作成したインストーラは `src-tauri/target/release/bundle/` に出力されます。
@@ -173,6 +174,7 @@ npm run tauri build -- --config /tmp/no-updater.json
 | `index.html`, `src/styles.css` | 画面のレイアウトと見た目 |
 | `src/main.ts` | 画面の動作。ドロップの受け取り、選択、ドラッグで出す処理 |
 | `src-tauri/src/shelf.rs` | 棚のデータ（パスの一覧）と JSON への保存。ユニットテストもここ |
+| `CLAUDE.md`, `decisions/` | 開発の基準（[desktop-platform](https://github.com/jazmf-dx/desktop-platform)）への参照、前提（`project-context.md`）、基準から外れているところの記録（ADR） |
 | `src-tauri/src/lib.rs` | 画面から呼ぶコマンド、トレイアイコン、ウィンドウの配置 |
 | `src-tauri/src/shortcut.rs` | ショートカットキー（1 回で表示 / 非表示、2 回でコピーしたファイルを置く） |
 | `src-tauri/src/clipboard.rs` | クリップボードからコピーしたファイルのパスを読む |
