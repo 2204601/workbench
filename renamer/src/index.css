@@ -88,13 +88,16 @@ body,
 
 /* macOS: the page runs under the title bar, with the window buttons over its
    top left (src/lib/titleBar.ts). Room left for them; none in full screen,
-   where they are hidden, and none on Windows, which keeps its title bar. */
+   where they are hidden, and none on Windows, which keeps its title bar.
+   --titlebar is the toolbar's height there; tauri.conf.json's
+   trafficLightPosition.y (24) puts the buttons' centres halfway down it, in
+   line with the toolbar's own buttons. Change the two together. */
 :root {
   --titlebar: 0px;
   --traffic-lights: 0px;
 }
 :root[data-titlebar="overlay"]:not([data-fullscreen]) {
-  --titlebar: 40px;
+  --titlebar: 48px;
   --traffic-lights: 84px;
 }
 
