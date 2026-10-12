@@ -48,7 +48,7 @@ Windows は ⌘ → Ctrl、⌥ → Alt。
 
 - 名前を変える直前に 1 件ずつ、読み込んだときと同じファイルかを確かめる。同じ名前のファイルがあれば上書きせずに止まる
 - 途中で失敗したら止まって、「元に戻す / 飛ばして続ける / ここで終える」を選べる
-- 変更の記録（ジャーナル）を先に書くので、アプリを閉じても、落ちても、次に起動したときに元に戻せる。記録はアプリのデータフォルダの `journal.jsonl`（macOS：`~/Library/Application Support/jp.co.jazmf.renamer/`、Windows：`%APPDATA%\jp.co.jazmf.renamer\`）
+- 変更の記録（ジャーナル）を先に書くので、アプリを閉じても、落ちても、次に起動したときに元に戻せる。記録はアプリのデータフォルダの `journal.jsonl`（macOS：`~/Library/Application Support/dev.workbench.renamer/`、Windows：`%APPDATA%\dev.workbench.renamer\`）
 
 詳しくは [docs/SAFETY.md](docs/SAFETY.md)。
 
@@ -56,8 +56,8 @@ Windows は ⌘ → Ctrl、⌥ → Alt。
 
 **ヘルプ › ログを表示** で開く。
 
-- macOS：`~/Library/Logs/jp.co.jazmf.renamer/renamer.log`
-- Windows：`%LOCALAPPDATA%\jp.co.jazmf.renamer\logs\renamer.log`
+- macOS：`~/Library/Logs/dev.workbench.renamer/renamer.log`
+- Windows：`%LOCALAPPDATA%\dev.workbench.renamer\logs\renamer.log`
 
 ## 開発
 

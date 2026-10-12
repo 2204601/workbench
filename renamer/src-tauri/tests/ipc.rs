@@ -29,7 +29,7 @@ fn ui() -> Ui {
     let mut context = mock_context(noop_assets());
     // Its own app folders (the journal goes there), apart from other tests.
     context.config_mut().identifier =
-        format!("jp.co.jazmf.renamer.test-{}", std::process::id() as u128 * 1000 + next());
+        format!("dev.workbench.renamer.test-{}", std::process::id() as u128 * 1000 + next());
     let app = renamer_lib::with_commands(mock_builder()).build(context).expect("app");
     let webview = WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window");
     Ui { _app: app, webview }

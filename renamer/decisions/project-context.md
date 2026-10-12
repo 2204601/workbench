@@ -12,7 +12,7 @@ AI と人が実装前に確認する **現在の前提**。機能要件、ロー
 | データの置き場 | `app_data_dir()` の JSON（直前の実行のジャーナルだけ。docs/ARCHITECTURE.md「ジャーナル」） |
 | 外との接続 | なし（自分から出る通信は updater の feed だけ） |
 | 配布の形 | workbench 同居（Platform Optional「複数ツール同居リポジトリ」。tag `renamer-v*`、feed は固定リリース `renamer-updater`） |
-| 識別子 | `jp.co.jazmf.renamer`（一度配布したら変えない） |
+| 識別子 | `dev.workbench.renamer`（workbench の命名にそろえた。配布前に変えたので移行は無い。一度配布したら変えない） |
 | productName | `Renamer` |
 | 主な利用 OS | Windows（社内のほぼ全員）。macOS も Platform の基準どおり配布するが、確認の優先度は Windows を先にする |
 | desktop-base | 未採用（まだ無い）。[stockroom](https://github.com/2204601/stockroom)（旧 image-library）の `170b90c`（v0.17.0）から写す。desktop-base ができたら差し替える |

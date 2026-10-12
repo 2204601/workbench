@@ -10,7 +10,7 @@
 
 
 - 雛形を置く。Platform の [新しいツールを作る](../../../desktop-platform/playbook/new-tool.md) §1「desktop-base がまだ無いとき」の表に従い、stockroom の `170b90c`（v0.17.0）から写す。写した commit は `decisions/project-context.md` にある
-  - `identifier` は `jp.co.jazmf.renamer`、`productName` は `Renamer`
+  - `identifier` は `dev.workbench.renamer`、`productName` は `Renamer`
   - stockroom 固有の文字列を直す：`src-tauri/src/proxy.rs` の PAC のモード名（`StockroomPAC`）と User-Agent、`src/lib/update.ts` の `FEED` と「最新版です」の文言、`tauri.conf.json` の `plugins.updater.endpoints`
   - 使わないものは写さない：ローカル受付（`loopback.rs`、`mcp/`、`webimport.rs`、`extension/`）、SQLite（`db.rs`、`library.rs`）、画像・フォント・PDF の処理、asset protocol
 - updater の署名鍵：workbench の Secrets を使う（Shelf と共有）
