@@ -99,6 +99,12 @@ fn prune_missing(
 }
 
 #[tauri::command]
+fn unstack_items(shelf: State<Shelf>, paths: Vec<String>) -> CmdResult<Vec<ShelfItem>> {
+    shelf.unstack(&paths).map_err(err)?;
+    Ok(shelf.list())
+}
+
+#[tauri::command]
 fn clear_items(app: AppHandle, shelf: State<Shelf>) -> CmdResult<Vec<ShelfItem>> {
     shelf.clear().map_err(err)?;
     Ok(hide_if_empty(&app, shelf.list()))
@@ -309,6 +315,7 @@ pub fn run() {
             add_clipboard_files,
             remove_items,
             prune_missing,
+            unstack_items,
             clear_items,
             reveal_item,
             open_item,

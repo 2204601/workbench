@@ -21,6 +21,10 @@ pub struct ShelfItem {
     pub is_dir: bool,
     pub size: Option<u64>,
     pub added_at: u64,
+    /// Files dropped together share a stack id and are shown, and dragged
+    /// out, as one stack.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack: Option<u64>,
     /// Recomputed on every read; never trusted from disk.
     #[serde(default, skip_deserializing)]
     pub exists: bool,
@@ -39,6 +43,7 @@ impl ShelfItem {
             is_dir: meta.is_dir(),
             size: meta.is_file().then_some(meta.len()),
             added_at: now_millis(),
+            stack: None,
             exists: true,
         })
     }
@@ -77,21 +82,47 @@ impl Shelf {
 
     /// Adds paths to the top of the shelf. A path already on the shelf moves
     /// to the top instead of being duplicated. Paths that cannot be read are
-    /// skipped. Returns the paths that were actually added.
+    /// skipped. When more than one path is added, they become one stack.
+    /// Returns the paths that were actually added.
     pub fn add(&self, paths: &[PathBuf]) -> io::Result<Vec<PathBuf>> {
         let mut items = self.items.lock().unwrap();
-        let mut added = Vec::new();
-        // Iterate in reverse so the first dropped file ends up on top.
-        for path in paths.iter().rev() {
-            let Ok(item) = ShelfItem::from_path(path) else {
-                continue;
-            };
-            items.retain(|existing| existing.path != item.path);
-            items.insert(0, item);
-            added.push(path.clone());
+        let mut new: Vec<ShelfItem> = Vec::new();
+        for item in paths
+            .iter()
+            .filter_map(|path| ShelfItem::from_path(path).ok())
+        {
+            if !new.iter().any(|seen| seen.path == item.path) {
+                new.push(item);
+            }
         }
+        let stack = (new.len() > 1).then(|| {
+            // Unique even for two drops within the same millisecond.
+            let next = items
+                .iter()
+                .filter_map(|i| i.stack)
+                .max()
+                .map_or(0, |m| m + 1);
+            now_millis().max(next)
+        });
+        items.retain(|existing| !new.iter().any(|item| item.path == existing.path));
+        let added = new.iter().map(|item| PathBuf::from(&item.path)).collect();
+        // The first dropped file ends up on top.
+        items.splice(
+            0..0,
+            new.into_iter().map(|item| ShelfItem { stack, ..item }),
+        );
         self.save(&items)?;
         Ok(added)
+    }
+
+    /// Takes the given paths out of their stacks, leaving them as separate
+    /// items where they are.
+    pub fn unstack(&self, paths: &[String]) -> io::Result<()> {
+        let mut items = self.items.lock().unwrap();
+        for item in items.iter_mut().filter(|i| paths.contains(&i.path)) {
+            item.stack = None;
+        }
+        self.save(&items)
     }
 
     pub fn remove(&self, paths: &[String]) -> io::Result<()> {
@@ -182,6 +213,56 @@ mod tests {
             .unwrap();
         assert!(Shelf::load(store).list().is_empty());
 
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn stacks_files_dropped_together() {
+        let dir = temp_dir("stack");
+        let [a, b, c] = ["a.txt", "b.txt", "c.txt"].map(|n| dir.join(n));
+        for p in [&a, &b, &c] {
+            fs::write(p, "x").unwrap();
+        }
+        let shelf = Shelf::load(dir.join("shelf.json"));
+
+        shelf.add(std::slice::from_ref(&a)).unwrap();
+        assert_eq!(shelf.list()[0].stack, None);
+
+        // Re-adding `a` with others pulls it into the new stack.
+        shelf.add(&[b.clone(), a.clone()]).unwrap();
+        shelf.add(&[c.clone()]).unwrap();
+        let list = shelf.list();
+        let names: Vec<_> = list.iter().map(|i| i.name.as_str()).collect();
+        assert_eq!(names, ["c.txt", "b.txt", "a.txt"]);
+        assert_eq!(list[0].stack, None);
+        assert!(list[1].stack.is_some());
+        assert_eq!(list[1].stack, list[2].stack);
+
+        // A second stack in the same millisecond still gets its own id.
+        shelf.add(&[a.clone(), c.clone()]).unwrap();
+        let list = shelf.list();
+        assert_eq!(list[0].stack, list[1].stack);
+        assert_ne!(list[0].stack, list[2].stack);
+
+        shelf.unstack(&[a.to_string_lossy().into_owned()]).unwrap();
+        let reloaded = Shelf::load(dir.join("shelf.json")).list();
+        assert_eq!(reloaded[0].name, "a.txt");
+        assert_eq!(reloaded[0].stack, None);
+        assert!(reloaded[1].stack.is_some());
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_shelves_saved_before_stacks() {
+        let dir = temp_dir("old");
+        let store = dir.join("shelf.json");
+        fs::write(
+            &store,
+            r#"[{"path":"/x","name":"x","isDir":false,"size":1,"addedAt":1}]"#,
+        )
+        .unwrap();
+        assert_eq!(Shelf::load(store).list()[0].stack, None);
         fs::remove_dir_all(dir).unwrap();
     }
 
