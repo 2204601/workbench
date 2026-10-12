@@ -231,6 +231,60 @@ main {
   display: flex;
 }
 
+/* Stacks ------------------------------------------------------------------ */
+
+.item.nested {
+  margin-left: 18px;
+}
+
+.thumb-stack {
+  position: relative;
+  flex: none;
+}
+
+/* A second card peeking out from behind the first. */
+.thumb-stack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translate(3px, -3px);
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.thumb-stack .thumb {
+  position: relative;
+}
+
+.stack-count {
+  position: absolute;
+  right: -6px;
+  bottom: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+}
+
+.stack-toggle {
+  flex: none;
+}
+
+.stack-toggle svg {
+  transition: transform 0.15s;
+}
+
+.item.stack.open .stack-toggle svg {
+  transform: rotate(90deg);
+}
+
 /* Empty + drop states ------------------------------------------------------ */
 
 .empty {

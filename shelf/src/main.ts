@@ -10,8 +10,13 @@ type ShelfItem = {
   isDir: boolean;
   size: number | null;
   addedAt: number;
+  /** Shared by files dropped together. */
+  stack?: number;
   exists: boolean;
 };
+
+/** One line on the shelf: a single file, or the files dropped together. */
+type Row = { kind: "item"; item: ShelfItem } | { kind: "stack"; id: number; members: ShelfItem[] };
 
 type DragMode = "move" | "copy";
 
@@ -32,6 +37,10 @@ const dragAllLabel = $("drag-all-label");
 let items: ShelfItem[] = [];
 const selected = new Set<string>();
 let lastClicked: string | null = null;
+/** Stacks opened up to show their files. */
+const expanded = new Set<number>();
+/** The clickable rows in display order, as path groups, for Shift + click. */
+let clickable: string[][] = [];
 let mode: DragMode = loadMode();
 // True while one of our own items is being dragged out, so that dropping it
 // back onto the shelf does not re-add it.
@@ -132,48 +141,35 @@ function thumbFor(item: ShelfItem): HTMLElement {
   return box;
 }
 
+/** Groups the files of each stack into one row. Stacks keep their files together. */
+function groupRows(list: ShelfItem[]): Row[] {
+  const rows: Row[] = [];
+  for (const item of list) {
+    const last = rows[rows.length - 1];
+    if (item.stack == null) rows.push({ kind: "item", item });
+    else if (last?.kind === "stack" && last.id === item.stack) last.members.push(item);
+    else rows.push({ kind: "stack", id: item.stack, members: [item] });
+  }
+  // A stack whose other files were taken out is just a file again.
+  return rows.map((r) => (r.kind === "stack" && r.members.length === 1 ? { kind: "item", item: r.members[0] } : r));
+}
+
 function render() {
-  listEl.replaceChildren(
-    ...items.map((item) => {
-      const li = document.createElement("li");
-      li.className = "item";
-      li.classList.toggle("selected", selected.has(item.path));
-      li.classList.toggle("missing", !item.exists);
-      li.title = item.path;
+  const rows = groupRows(items);
+  const stackIds = new Set(rows.flatMap((r) => (r.kind === "stack" ? [r.id] : [])));
+  for (const id of [...expanded]) if (!stackIds.has(id)) expanded.delete(id);
 
-      const meta = !item.exists
-        ? "見つかりません"
-        : item.isDir
-          ? `フォルダ · ${parentDir(item.path)}`
-          : `${formatSize(item.size ?? 0)} · ${parentDir(item.path)}`;
-
-      const text = document.createElement("div");
-      text.className = "text";
-      const name = document.createElement("div");
-      name.className = "name";
-      name.textContent = item.name;
-      const sub = document.createElement("div");
-      sub.className = "meta";
-      sub.textContent = meta;
-      text.append(name, sub);
-
-      const actions = document.createElement("div");
-      actions.className = "row-actions";
-      actions.append(
-        rowButton("Finder / エクスプローラで表示", `<path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11z"/>`, () =>
-          invoke("reveal_item", { path: item.path }).catch(console.error),
-        ),
-        rowButton("棚から外す", `<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>`, () => removePaths([item.path])),
-      );
-
-      li.append(thumbFor(item), text, actions);
-      attachItemPointer(li, item);
-      li.addEventListener("dblclick", () => {
-        if (item.exists) invoke("open_item", { path: item.path }).catch(console.error);
-      });
-      return li;
-    }),
-  );
+  clickable = [];
+  const lis: HTMLLIElement[] = [];
+  for (const row of rows) {
+    if (row.kind === "item") {
+      lis.push(itemRow(row.item));
+      continue;
+    }
+    lis.push(stackRow(row));
+    if (expanded.has(row.id)) for (const member of row.members) lis.push(itemRow(member, true));
+  }
+  listEl.replaceChildren(...lis);
 
   const n = items.length;
   emptyEl.hidden = n > 0;
@@ -183,6 +179,105 @@ function render() {
     selected.size > 0 ? `選択中の ${selected.size} 件をドラッグ` : `${n} 件まとめてドラッグ`;
   modeBtn.textContent = mode === "move" ? "移動" : "コピー";
   modeBtn.classList.toggle("copy", mode === "copy");
+}
+
+function rowText(name: string, meta: string) {
+  const text = document.createElement("div");
+  text.className = "text";
+  const nameEl = document.createElement("div");
+  nameEl.className = "name";
+  nameEl.textContent = name;
+  const sub = document.createElement("div");
+  sub.className = "meta";
+  sub.textContent = meta;
+  text.append(nameEl, sub);
+  return text;
+}
+
+function itemRow(item: ShelfItem, nested = false) {
+  const li = document.createElement("li");
+  li.className = "item";
+  li.classList.toggle("nested", nested);
+  li.classList.toggle("selected", selected.has(item.path));
+  li.classList.toggle("missing", !item.exists);
+  li.title = item.path;
+
+  const meta = !item.exists
+    ? "見つかりません"
+    : item.isDir
+      ? `フォルダ · ${parentDir(item.path)}`
+      : `${formatSize(item.size ?? 0)} · ${parentDir(item.path)}`;
+
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+  actions.append(
+    rowButton("Finder / エクスプローラで表示", `<path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11z"/>`, () =>
+      invoke("reveal_item", { path: item.path }).catch(console.error),
+    ),
+    rowButton("棚から外す", `<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>`, () => removePaths([item.path])),
+  );
+
+  li.append(thumbFor(item), rowText(item.name, meta), actions);
+  attachRowPointer(li, [item.path]);
+  li.addEventListener("dblclick", () => {
+    if (item.exists) invoke("open_item", { path: item.path }).catch(console.error);
+  });
+  return li;
+}
+
+function stackRow(row: Extract<Row, { kind: "stack" }>) {
+  const { id, members } = row;
+  const paths = members.map((m) => m.path);
+  const present = members.filter((m) => m.exists);
+  const open = expanded.has(id);
+
+  const li = document.createElement("li");
+  li.className = "item stack";
+  li.classList.toggle("open", open);
+  li.classList.toggle("selected", paths.every((p) => selected.has(p)));
+  li.classList.toggle("missing", present.length === 0);
+  li.title = paths.join("\n");
+
+  const thumb = document.createElement("div");
+  thumb.className = "thumb-stack";
+  const count = document.createElement("span");
+  count.className = "stack-count";
+  count.textContent = String(members.length);
+  thumb.append(thumbFor(members[0]), count);
+
+  const folders = new Set(members.map((m) => parentDir(m.path)));
+  const size = present.reduce((sum, m) => sum + (m.size ?? 0), 0);
+  const missing = members.length - present.length;
+  // The count leads, so a long first name cannot push it out of sight.
+  const meta = [
+    `ほか ${members.length - 1} 件`,
+    missing ? `${missing} 件見つかりません` : formatSize(size),
+    folders.size === 1 ? [...folders][0] : "複数のフォルダ",
+  ].join(" · ");
+
+  const toggle = () => {
+    if (open) expanded.delete(id);
+    else expanded.add(id);
+    render();
+  };
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+  actions.append(
+    rowButton("まとめを解除（1 件ずつに分ける）", `<path d="M3 5.5h4v4H3zM9 6.5h4v4H9z"/>`, () =>
+      call("unstack_items", { paths }),
+    ),
+    rowButton("まとめて棚から外す", `<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>`, () => removePaths(paths)),
+  );
+  const chevron = rowButton(open ? "閉じる" : "中身を表示", `<path d="M6 4l4 4-4 4"/>`, toggle);
+  chevron.classList.add("stack-toggle");
+
+  li.append(thumb, rowText(members[0].name, meta), actions, chevron);
+  attachRowPointer(li, paths);
+  li.addEventListener("dblclick", (e) => {
+    // Quick clicks on the › button already toggle on their own.
+    if (!(e.target as HTMLElement).closest("button")) toggle();
+  });
+  return li;
 }
 
 function rowButton(title: string, svgPath: string, onClick: () => void) {
@@ -200,24 +295,29 @@ function rowButton(title: string, svgPath: string, onClick: () => void) {
 // ---------------------------------------------------------------------------
 // Selection + drag out
 
-function handleClick(item: ShelfItem, e: PointerEvent) {
+/** Click selection over rows; a stack row selects all of its files. */
+function handleClick(paths: string[], e: PointerEvent) {
   const toggle = e.metaKey || e.ctrlKey;
+  const all = paths.every((p) => selected.has(p));
   if (e.shiftKey && lastClicked) {
-    const a = items.findIndex((i) => i.path === lastClicked);
-    const b = items.findIndex((i) => i.path === item.path);
-    if (a >= 0 && b >= 0) {
-      const [from, to] = a < b ? [a, b] : [b, a];
-      for (const i of items.slice(from, to + 1)) selected.add(i.path);
+    const from = clickable.findIndex((g) => g.includes(lastClicked!));
+    const to = clickable.findIndex((g) => g.includes(paths[0]));
+    if (from >= 0 && to >= 0) {
+      for (const g of clickable.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+        for (const p of g) selected.add(p);
+      }
     }
   } else if (toggle) {
-    if (selected.has(item.path)) selected.delete(item.path);
-    else selected.add(item.path);
+    for (const p of paths) {
+      if (all) selected.delete(p);
+      else selected.add(p);
+    }
   } else {
-    const only = selected.size === 1 && selected.has(item.path);
+    const only = all && selected.size === paths.length;
     selected.clear();
-    if (!only) selected.add(item.path);
+    if (!only) for (const p of paths) selected.add(p);
   }
-  lastClicked = item.path;
+  lastClicked = paths[0];
   render();
 }
 
@@ -249,15 +349,18 @@ function trackPointer(el: HTMLElement, getPaths: () => string[], onClick?: (e: P
   });
 }
 
-function attachItemPointer(li: HTMLElement, item: ShelfItem) {
+/** `paths`: the file, or the files of the stack, that the row stands for. */
+function attachRowPointer(li: HTMLElement, paths: string[]) {
+  clickable.push(paths);
   trackPointer(
     li,
     () => {
-      // Dragging a selected item drags the whole selection; otherwise just it.
-      const group = selected.has(item.path) ? items.filter((i) => selected.has(i.path)) : [item];
+      // Dragging a selected row drags the whole selection; otherwise just it.
+      const inSelection = paths.every((p) => selected.has(p));
+      const group = items.filter((i) => (inSelection ? selected.has(i.path) : paths.includes(i.path)));
       return group.filter((i) => i.exists).map((i) => i.path);
     },
-    (e) => handleClick(item, e),
+    (e) => handleClick(paths, e),
   );
 }
 
