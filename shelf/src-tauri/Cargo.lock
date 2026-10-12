@@ -3557,10 +3557,10 @@ dependencies = [
 
 [[package]]
 name = "shelf"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
- "block2",
  "core-foundation-sys",
+ "objc2",
  "objc2-app-kit",
  "objc2-foundation",
  "serde",

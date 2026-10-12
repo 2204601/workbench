@@ -1,6 +1,6 @@
 [package]
 name = "shelf"
-version = "0.1.4"
+version = "0.1.5"
 description = "A tiny drop shelf for moving files around"
 edition = "2021"
 
@@ -26,8 +26,8 @@ tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-block2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSApplication", "NSEvent", "NSPasteboard", "NSPasteboardItem", "NSResponder"] }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSEvent", "NSPasteboard", "NSPasteboardItem", "NSResponder"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString", "NSURL"] }
 # System proxy lookup (PAC) for the updater, see proxy.rs.
 core-foundation-sys = "0.8"
