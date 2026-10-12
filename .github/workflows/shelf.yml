@@ -19,7 +19,45 @@ on:
 permissions:
   contents: read
 
+# A newer push to a branch supersedes its running build; releases always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' && github.event_name != 'workflow_dispatch' }}
+
 jobs:
+  # Platform Governance §4: every gate but the installers, on Linux (cheap).
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: shelf
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: shelf/src-tauri -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Install Linux deps for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: shelf/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx eslint src
+      - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
+      # tauri::generate_context! needs the built frontend folder to exist.
+      - run: mkdir -p dist
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
   build:
     strategy:
       fail-fast: false
@@ -47,9 +85,9 @@ jobs:
       run:
         working-directory: shelf
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -59,9 +97,11 @@ jobs:
         with:
           targets: ${{ matrix.rust-targets }}
 
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2.9.2
         with:
           workspaces: shelf/src-tauri -> target
+          # Only main's cache is ever restored by later runs.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: npm ci
       - run: cargo test --manifest-path src-tauri/Cargo.toml
@@ -77,7 +117,7 @@ jobs:
           fi
           npm run tauri build -- ${{ matrix.build-args }} "${no_updater[@]}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: shelf-${{ runner.os }}
           path: |
@@ -90,12 +130,12 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/shelf-v') || (github.event_name == 'workflow_dispatch' && inputs.release)
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve tag, check version and extract notes
         id: meta
@@ -123,7 +163,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: bundles
           merge-multiple: true
@@ -162,7 +202,7 @@ jobs:
             }' > latest.json
           cat latest.json
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           target_commitish: ${{ github.sha }}
@@ -180,7 +220,7 @@ jobs:
       # (plugins.updater.endpoints in tauri.conf.json). Other tools release
       # from this repository too, so releases/latest can't be used. Runs after
       # the release above, so the files it points to are already there.
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: shelf-updater
           target_commitish: ${{ github.sha }}
