@@ -5,6 +5,7 @@
 | ツール | 説明 | ダウンロード |
 | --- | --- | --- |
 | [Shelf](shelf/) | ファイルを移動するときの一時置き場になる、Yoink 風の小さなアプリ（macOS / Windows） | [Releases](https://github.com/2204601/workbench/releases?q=shelf) |
+| [Renamer](renamer/) | フォルダの中のファイル名を、ルールに沿って一括で変えるアプリ。プレビューと取り消し付き（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=renamer) |
 
 ## リポジトリの決まりごと
 
