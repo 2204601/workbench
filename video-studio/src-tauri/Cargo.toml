@@ -1,0 +1,57 @@
+[package]
+name = "video-studio"
+version = "0.1.0"
+description = "動画を切って並べ、文字やスタンプ、切り替えを入れて書き出す"
+authors = ["2204601"]
+edition = "2021"
+
+[lib]
+# The `_lib` suffix keeps the lib name apart from the bin name, which clash
+# on Windows (https://github.com/rust-lang/cargo/issues/8519).
+name = "video_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# protocol-asset: the preview plays the media files straight from disk
+# (convertFileSrc), only the ones the user added (media.rs allows each).
+tauri = { version = "2", features = ["protocol-asset"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+# The text and stamp images come from the page as PNG data URLs (render.rs).
+base64 = "0.22"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+# The window opens at the size and place it had when last closed.
+tauri-plugin-window-state = "2"
+# A second launch brings up the running app's window instead (lib.rs).
+tauri-plugin-single-instance = "2"
+# Warnings and errors into a file in the app's log folder (lib.rs, src/lib/log.ts).
+tauri-plugin-log = "2"
+# OS notifications for long exports that end while the user is away (src/lib/osNotify.ts).
+tauri-plugin-notification = "2"
+
+# Platform Distribution §7.
+[profile.release]
+lto = "thin"
+opt-level = 3
+panic = "abort"
+strip = true
+
+# The system proxy (proxy.rs), and starting ffmpeg without a console window.
+[target."cfg(windows)".dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
+
+# System proxy lookup (PAC) for the updater, see proxy.rs.
+[target."cfg(target_os = \"macos\")".dependencies]
+core-foundation-sys = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
+# The mock runtime: commands called through IPC as the frontend calls them (tests/ipc.rs).
+tauri = { version = "2", features = ["test", "protocol-asset"] }
