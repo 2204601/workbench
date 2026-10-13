@@ -476,7 +476,7 @@ pub fn seal_layout<'a>(
             let half = chord(y);
             out.dividers.push((y, cx - half, cx + half));
         }
-        let centres = [(cy + band / 2.0 + ry) / 2.0, cy, (cy - band / 2.0 - ry) / 2.0];
+        let centres = [cy + (band / 2.0 + ry) / 2.0, cy, cy - (band / 2.0 + ry) / 2.0];
         for (i, text) in lines.iter().take(3).enumerate() {
             let y = centres[i];
             let max = (chord(y) * 2.0 - 2.0 * pad).max(1.0);
@@ -625,8 +625,11 @@ mod tests {
         let date = &l.lines[1];
         assert!(date.size < 9.0 && date.size >= 4.0, "{}", date.size);
         assert!(date.x > 0.0 && date.x + measure(date.text, date.size) < 68.0);
-        // Centred: the middle line sits on the middle of the box.
+        // Centred: the middle line sits on the middle of the box; the others
+        // halfway between their divider and the rim.
         assert!((date.y - 34.0).abs() < 0.01);
+        assert!(l.lines[0].y > l.dividers[0].0 && l.lines[0].y < 68.0, "{}", l.lines[0].y);
+        assert!(l.lines[2].y < l.dividers[1].0 && l.lines[2].y > 0.0, "{}", l.lines[2].y);
         let b = seal_layout(false, 80.0, 24.0, 14.0, 1.0, &["承認済み"], measure);
         assert_eq!(b.lines.len(), 1);
         assert!(b.dividers.is_empty());

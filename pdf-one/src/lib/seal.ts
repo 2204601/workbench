@@ -46,7 +46,7 @@ export function sealLayout(shape: SealShape, w: number, h: number, size: number,
       const half = chord(y);
       out.dividers.push([y, cx - half, cx + half]);
     }
-    const centres = [(cy + band / 2 + ry) / 2, cy, (cy - band / 2 - ry) / 2];
+    const centres = [cy + (band / 2 + ry) / 2, cy, cy - (band / 2 + ry) / 2];
     lines.slice(0, 3).forEach((text, i) => {
       const y = centres[i];
       const max = Math.max(1, chord(y) * 2 - 2 * pad);
