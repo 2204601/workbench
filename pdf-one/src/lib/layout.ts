@@ -51,12 +51,17 @@ export function layout(pages: PageItem[], scale: number, viewportWidth: number) 
   return { geoms, width: contentWidth, height: top };
 }
 
-/** The zoom (1 = 100%) for a mode, given the view's size. */
-export function fitScale(zoom: Zoom, pages: PageItem[], current: number, width: number, height: number): number {
+/**
+ * The zoom (1 = 100%) for a mode, given the view's size: fitted to page
+ * `base`. The caller passes the page in view when the mode or the window
+ * changes, and keeps it while scrolling: refitting to each page as it comes
+ * into view would change the zoom between pages of different sizes (Letter
+ * and A4, a landscape page, a scan a little off size) and make the view jump.
+ */
+export function fitScale(zoom: Zoom, pages: PageItem[], base: number, width: number, height: number): number {
   if (zoom.mode === "scale") return zoom.value;
   if (!pages.length || width <= 0) return 1;
-  // Fitted to the page in view, so a tall page among wide ones still fits.
-  const p = pages[Math.min(current, pages.length - 1)];
+  const p = pages[Math.min(base, pages.length - 1)];
   const { view, rotation } = pageBox(p);
   const [w, h] = viewSize(view, CSS_PER_PT, rotation);
   const byWidth = (width - 2 * GAP - 12) / w;

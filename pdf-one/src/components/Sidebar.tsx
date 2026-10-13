@@ -82,7 +82,13 @@ function PageList({ d }: { d: Doc }) {
   };
 
   return (
-    <div ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto outline-none" tabIndex={0} onKeyDown={onKeyDown}>
+    <div
+      ref={scroller}
+      data-virtual-list
+      className="relative min-h-0 flex-1 overflow-y-auto outline-none"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+    >
       <div style={{ height: v.getTotalSize(), position: "relative" }}>
         {v.getVirtualItems().map((row) => {
           const p = d.pages[row.index];

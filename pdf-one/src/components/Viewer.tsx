@@ -74,8 +74,17 @@ export function Viewer({ d }: { d: Doc }) {
     return () => ro.disconnect();
   }, []);
 
-  // The zoom as a number for the window's size.
-  const scale = size.w ? fitScale(d.zoom, d.pages, d.page, size.w, size.h) : d.scale;
+  // The zoom as a number for the window's size. "Fit" fits the page in view
+  // when the mode or the window changes, and stays as it is while scrolling
+  // (see fitScale).
+  const page = useRef(d.page);
+  page.current = d.page;
+  const scale = useMemo(
+    () => (size.w ? fitScale(d.zoom, d.pages, page.current, size.w, size.h) : d.scale),
+    // Not d.page: scrolling to another page doesn't refit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [d.zoom, d.pages, size.w, size.h],
+  );
   useEffect(() => {
     if (Math.abs(scale - d.scale) > 1e-4) st().patchDoc({ scale }, d.key);
   }, [scale, d.scale, d.key]);
@@ -94,12 +103,20 @@ export function Viewer({ d }: { d: Doc }) {
     lastScale.current = scale;
     const first = !sized.current;
     if (size.w > 0) sized.current = true;
-    if (!el || prev === scale || first) return;
+    if (first && el && size.w > 0) {
+      // Back to the page the tab was on (after the page organizer, another tab).
+      const g = lay.geoms[page.current];
+      if (g && page.current > 0) el.scrollTop = g.top - 8;
+      return;
+    }
+    if (!el || prev === scale) return;
     const a = anchor.current ?? { x: el.clientWidth / 2, y: el.clientHeight / 2, scale: prev, top: el.scrollTop, left: el.scrollLeft };
     anchor.current = null;
     const k = scale / a.scale;
     el.scrollTop = (a.top + a.y) * k - a.y;
     el.scrollLeft = (a.left + a.x) * k - a.x;
+    // Only the zoom and the first real size move the view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, size.w]);
 
   // ⌘ / Ctrl + wheel (and the trackpad's pinch) zooms at the pointer.
@@ -129,11 +146,15 @@ export function Viewer({ d }: { d: Doc }) {
     if (p !== activeDoc(st())?.page) st().patchDoc({ page: p }, d.key);
   }, [lay.geoms, d.key]);
 
-  // Asked to show a page (thumbnails, search, links, page number).
+  // Asked to show a page (thumbnails, search, links, page number). A request
+  // made before this view was shown (another tab, the page organizer) is
+  // done already: the view comes back to the page the tab was on instead.
+  const handled = useRef(d.scrollTo?.seq ?? 0);
   useEffect(() => {
     const el = scroller.current;
     const req = d.scrollTo;
-    if (!el || !req) return;
+    if (!el || !req || req.seq === handled.current) return;
+    handled.current = req.seq;
     const g = lay.geoms[req.page];
     if (!g) return;
     let top = g.top - 8;
