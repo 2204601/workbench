@@ -186,6 +186,7 @@ npm run tauri build -- --config /tmp/no-updater.json
 | `src-tauri/tauri.conf.json` | アプリ名・バージョン・ウィンドウ設定・作るインストーラの種類 |
 | `src-tauri/capabilities/default.json` | 画面に許可する操作（権限） |
 | `src-tauri/icons/` | アプリアイコン（`app-icon.svg` から `npx tauri icon` で生成） |
+| `src-tauri/icons/tray/`, `tray-icon.svg`, `src-tauri/src/tray_icon.rs` | メニューバー / タスクトレイの白黒のアイコン。macOS はテンプレート画像（44px）、Windows はタスクバーの明るさに合わせて白か黒（32px）。PNG は `tray-icon.svg` を透明背景で書き出したもの |
 
 アプリの外へファイルをドラッグして出すには OS ネイティブのドラッグ操作が必要なため、[tauri-plugin-drag](https://github.com/crabnebula-dev/drag-rs) を使っています。
 

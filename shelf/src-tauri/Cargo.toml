@@ -1,6 +1,6 @@
 [package]
 name = "shelf"
-version = "0.1.6"
+version = "0.1.7"
 description = "A tiny drop shelf for moving files around"
 edition = "2021"
 
@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "protocol-asset", "macos-private-api"] }
+tauri = { version = "2", features = ["tray-icon", "protocol-asset", "macos-private-api", "image-png"] }
 tauri-plugin-drag = "2"
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -36,6 +36,6 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 core-foundation-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Ole", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Ole", "Win32_System_Registry", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 # System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
