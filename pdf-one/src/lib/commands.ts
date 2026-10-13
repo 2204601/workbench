@@ -16,6 +16,7 @@ import {
   Check,
   Circle,
   CircleDot,
+  CircleHelp,
   Columns2,
   Copy,
   Download,
@@ -405,6 +406,14 @@ export const COMMANDS: Command[] = [
 
   { id: "app.settings", title: "設定…", keys: ["Mod+,"], words: ["名前", "作成者", "文字の大きさ", "大きく", "アップデート"], run: (s) => s.openDialog("settings") },
   { id: "app.checkUpdate", title: "アップデートを確認…", words: ["更新", "新しいバージョン"], run: () => void checkForUpdate(true) },
+  {
+    id: "help.guide",
+    title: "使い方",
+    icon: CircleHelp,
+    keys: ["F1"],
+    words: ["ヘルプ", "説明", "やり方", "わからない", "マニュアル", "手順"],
+    run: (s) => s.openDialog("help"),
+  },
   { id: "help.shortcuts", title: "キーボードショートカット", keys: ["?"], words: ["キー", "早わざ"], run: (s) => s.openDialog("shortcuts") },
   {
     id: "help.log",

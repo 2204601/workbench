@@ -34,7 +34,7 @@ export interface Updating {
   installing?: boolean;
 }
 
-export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | "seal" | "recover" | "print" | null;
+export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | "seal" | "recover" | "print" | "help" | null;
 
 /** A seal made in the dialog, waiting to be placed (the seal tool). */
 export interface PendingSeal {

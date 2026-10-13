@@ -203,6 +203,7 @@ async function build(): Promise<Menu> {
         ]
       : []),
     submenu("ヘルプ", [
+      cmd("help.guide"),
       cmd("help.shortcuts"),
       cmd("help.log"),
       ...(isMac ? [] : [sep(), cmd("app.checkUpdate")]),

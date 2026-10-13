@@ -8,6 +8,7 @@ import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dial
 import { PrintDialog } from "./components/PrintDialog";
 import { checkDrafts, RecoverDialog } from "./components/RecoverDialog";
 import { DropOverlay, useFileDrop } from "./components/DropZone";
+import { HelpDialog } from "./components/HelpDialog";
 import { Organizer } from "./components/Organizer";
 import { Ribbon } from "./components/Ribbon";
 import { SealDialog } from "./components/SealDialog";
@@ -146,6 +147,7 @@ export default function App() {
       {dialog === "seal" && <SealDialog />}
       {dialog === "recover" && <RecoverDialog />}
       {dialog === "print" && <PrintDialog />}
+      {dialog === "help" && <HelpDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />
