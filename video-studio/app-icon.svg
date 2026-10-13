@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Video Studio: a strip of film, cut in two, the right half sliding in. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c2e35"/>
+      <stop offset="1" stop-color="#17181c"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <g transform="rotate(-12 512 512)">
+    <rect x="150" y="380" width="330" height="264" rx="28" fill="#4c8dff"/>
+    <rect x="544" y="380" width="330" height="264" rx="28" fill="#f07a45"/>
+    <g fill="#17181c">
+      <rect x="182" y="400" width="44" height="34" rx="8"/>
+      <rect x="262" y="400" width="44" height="34" rx="8"/>
+      <rect x="342" y="400" width="44" height="34" rx="8"/>
+      <rect x="182" y="590" width="44" height="34" rx="8"/>
+      <rect x="262" y="590" width="44" height="34" rx="8"/>
+      <rect x="342" y="590" width="44" height="34" rx="8"/>
+      <rect x="618" y="400" width="44" height="34" rx="8"/>
+      <rect x="698" y="400" width="44" height="34" rx="8"/>
+      <rect x="778" y="400" width="44" height="34" rx="8"/>
+      <rect x="618" y="590" width="44" height="34" rx="8"/>
+      <rect x="698" y="590" width="44" height="34" rx="8"/>
+      <rect x="778" y="590" width="44" height="34" rx="8"/>
+    </g>
+    <path d="M300 470 L360 512 L300 554 Z" fill="#e6e6e8"/>
+  </g>
+  <path d="M512 210 L512 814" stroke="#e6e6e8" stroke-width="22" stroke-linecap="round" stroke-dasharray="10 46"/>
+</svg>

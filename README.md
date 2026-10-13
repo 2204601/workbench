@@ -9,6 +9,7 @@
 | [Renamer](renamer/) | フォルダの中のファイル名を、ルールに沿って一括で変えるアプリ。プレビューと取り消し付き（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=renamer) |
 | [Disk Analyzer](disk-analyzer/) | ドライブやフォルダの中で何が容量を使っているかを、DaisyDisk 風のグラフ（サンバースト・ツリーマップ・アイシクル）と一覧で見るアプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=disk-analyzer) |
 | [Meter](meter/) | CPU・メモリ・ディスク・ネットワークの使用状況をタスクトレイ（macOS はメニューバー）にいつも出し、クリックでグラフと重いアプリの一覧を見るアプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=meter) |
+| [Video Studio](video-studio/) | 動画を切って並べ、文字やスタンプ、切り替えのアニメーションを入れて MP4 に書き出す、かんたんな動画編集アプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=video-studio) |
 
 ## リポジトリの決まりごと
 

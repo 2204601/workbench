@@ -1,0 +1,25 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.sw?
+
+# Rust / Tauri build output (Platform Governance §2)
+src-tauri/target
+src-tauri/gen/schemas
+
+# The ffmpeg sidecar, fetched by scripts/fetch-ffmpeg.mjs (not committed: ~80 MB)
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
