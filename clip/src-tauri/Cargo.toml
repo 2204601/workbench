@@ -1,6 +1,6 @@
 [package]
 name = "clip"
-version = "0.1.0"
+version = "0.1.1"
 description = "Snippets and clipboard history, typed in from one shortcut"
 edition = "2021"
 
@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 # Opens System Settings at the Accessibility pane (macOS).
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -36,6 +36,6 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 core-foundation-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_Registry", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 # System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }

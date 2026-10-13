@@ -4,6 +4,7 @@ mod paste;
 mod proxy;
 mod shortcut;
 mod store;
+mod tray_icon;
 mod update;
 
 use std::sync::{
@@ -323,7 +324,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     app.manage(TrayItems { open, record });
     sync_tray(app, &app.state::<Store>().settings());
 
-    let mut tray = TrayIconBuilder::with_id("main")
+    let tray = TrayIconBuilder::with_id(tray_icon::ID)
         .tooltip(format!("Clip v{}", app.package_info().version))
         .menu(&menu)
         // Any click opens the menu, as in Shelf (decisions/adr-0001).
@@ -338,10 +339,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
+    tray_icon::apply(tray)?.build(app)?;
     Ok(())
 }
 
@@ -389,6 +387,8 @@ pub fn run() {
             WindowEvent::Focused(false) if window.label() == "popup" => {
                 hide_popup(window.app_handle(), false);
             }
+            // Windows: the taskbar may have switched between light and dark.
+            WindowEvent::ThemeChanged(_) => tray_icon::refresh(window.app_handle()),
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
