@@ -144,3 +144,134 @@ mod tests {
         assert!(stamp_path(dir.path(), "../x").is_err());
     }
 }
+
+// ---------------------------------------------------------------- drafts
+
+/// A draft kept while editing (docs/SPEC.md「下書き」): what the frontend
+/// holds for a tab, written every half minute to `<app data>/drafts/<id>/`,
+/// so a crash or a forced quit loses at most that much. The original file
+/// is never touched.
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Draft {
+    /// The folder's name: a hash of the file's path.
+    pub id: String,
+    /// The file the tab was opened from.
+    pub path: String,
+    /// When it was written, as milliseconds since 1970.
+    pub saved_at: u64,
+    /// The tab's state, as the frontend wrote it (src/lib/drafts.ts).
+    pub json: String,
+    /// The pictures the state refers to: image id → file in the folder.
+    pub images: Vec<(u32, String)>,
+}
+
+/// The folder name for a file's draft: the same path always maps to the
+/// same folder, so a new draft replaces the old one.
+pub fn draft_id(path: &str) -> String {
+    // FNV-1a, 64 bits: no dependency, and collisions don't matter here.
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in path.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{h:016x}")
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Writes a draft for `path`: its state and the pictures it uses (given as
+/// id, bytes, extension). Returns the draft's id.
+pub fn write_draft(dir: &Path, path: &str, json: &str, images: &[(u32, &[u8], &str)]) -> Result<String, String> {
+    let id = draft_id(path);
+    let folder = dir.join(&id);
+    fs::create_dir_all(&folder).map_err(|e| format!("下書きのフォルダを作れませんでした: {e}"))?;
+    for (img, bytes, ext) in images {
+        let file = folder.join(format!("img_{img}.{ext}"));
+        if !file.exists() {
+            write_atomic(&file, bytes)?;
+        }
+    }
+    let meta = serde_json::json!({ "path": path, "savedAt": now_ms() });
+    write_atomic(&folder.join("meta.json"), meta.to_string().as_bytes())?;
+    write_atomic(&folder.join("state.json"), json.as_bytes())?;
+    Ok(id)
+}
+
+/// Every draft in `dir`, newest first. Folders without a readable state
+/// are left out (a write that was cut short).
+pub fn list_drafts(dir: &Path) -> Vec<Draft> {
+    let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
+    let mut out: Vec<Draft> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| {
+            let folder = e.path();
+            let id = e.file_name().to_string_lossy().into_owned();
+            let meta: serde_json::Value = serde_json::from_slice(&fs::read(folder.join("meta.json")).ok()?).ok()?;
+            let json = fs::read_to_string(folder.join("state.json")).ok()?;
+            let mut images = Vec::new();
+            for f in fs::read_dir(&folder).ok()?.filter_map(|f| f.ok()) {
+                let name = f.file_name().to_string_lossy().into_owned();
+                if let Some(rest) = name.strip_prefix("img_") {
+                    if let Some(n) = rest.split('.').next().and_then(|n| n.parse::<u32>().ok()) {
+                        images.push((n, f.path().to_string_lossy().into_owned()));
+                    }
+                }
+            }
+            Some(Draft {
+                id,
+                path: meta["path"].as_str()?.to_string(),
+                saved_at: meta["savedAt"].as_u64().unwrap_or(0),
+                json,
+                images,
+            })
+        })
+        .collect();
+    out.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+    out
+}
+
+/// Removes a draft's folder; refusing ids that would reach outside.
+pub fn remove_draft(dir: &Path, id: &str) -> Result<(), String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("下書きが見つかりません".into());
+    }
+    let folder = dir.join(id);
+    if folder.is_dir() {
+        fs::remove_dir_all(&folder).map_err(|e| format!("下書きを消せませんでした: {e}"))?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod draft_tests {
+    use super::*;
+
+    #[test]
+    fn drafts_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = dir.path().join("drafts");
+        assert!(list_drafts(&d).is_empty());
+        let id = write_draft(&d, "/a/見積書.pdf", r#"{"pages":[]}"#, &[(7, b"png", "png")]).unwrap();
+        assert_eq!(id, draft_id("/a/見積書.pdf"));
+        // Written again: the same folder, the newer state.
+        let id2 = write_draft(&d, "/a/見積書.pdf", r#"{"pages":[1]}"#, &[]).unwrap();
+        assert_eq!(id, id2);
+        let list = list_drafts(&d);
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].path, "/a/見積書.pdf");
+        assert_eq!(list[0].json, r#"{"pages":[1]}"#);
+        assert_eq!(list[0].images.len(), 1);
+        assert_eq!(list[0].images[0].0, 7);
+        assert!(Path::new(&list[0].images[0].1).is_file());
+        assert!(remove_draft(&d, "../x").is_err());
+        remove_draft(&d, &id).unwrap();
+        assert!(list_drafts(&d).is_empty());
+        // A folder with a half-written state is ignored.
+        fs::create_dir_all(d.join("deadbeef")).unwrap();
+        assert!(list_drafts(&d).is_empty());
+    }
+}

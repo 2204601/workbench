@@ -10,6 +10,18 @@ import type { AppSettings, ImageInfo, OpenedPdf, PageSpec, Stamp } from "../lib/
 let settings: AppSettings = { autoUpdate: true, author: "", recent: ["/Users/sample/Documents/見積書_2025.pdf"], seenTips: [] };
 /** The stamp library, for this run only. */
 const stamps = new Map<string, Stamp & { img: ImageInfo }>();
+
+/** Drafts, kept across reloads (sessionStorage) so recovery can be tried. */
+function loadDrafts(): Record<string, { path: string; savedAt: number; json: string }> {
+  try {
+    return JSON.parse(sessionStorage.getItem("mock.drafts") ?? "{}");
+  } catch {
+    return {};
+  }
+}
+function saveDrafts(d: Record<string, { path: string; savedAt: number; json: string }>) {
+  sessionStorage.setItem("mock.drafts", JSON.stringify(d));
+}
 let nextId = 1;
 const views = new Map<number, Uint8Array>();
 const images = new Map<number, { bytes: Uint8Array; width: number; height: number }>();
@@ -166,6 +178,22 @@ export function installMockBackend() {
         const s = stamps.get(String(a.id));
         if (!s) throw "スタンプが見つかりません";
         return s.img;
+      }
+      case "write_draft": {
+        const r = a.request as { path: string; json: string };
+        const d = loadDrafts();
+        const id = Array.from(r.path).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16);
+        d[id] = { path: r.path, savedAt: Date.now(), json: r.json };
+        saveDrafts(d);
+        return id;
+      }
+      case "list_drafts":
+        return Object.entries(loadDrafts()).map(([id, d]) => ({ id, ...d, images: [] }));
+      case "remove_draft": {
+        const d = loadDrafts();
+        delete d[String(a.id)];
+        saveDrafts(d);
+        return null;
       }
       case "reveal_log":
       case "reveal_backups":

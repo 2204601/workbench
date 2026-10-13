@@ -34,7 +34,7 @@ export interface Updating {
   installing?: boolean;
 }
 
-export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | "seal" | null;
+export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | "seal" | "recover" | null;
 
 /** A seal made in the dialog, waiting to be placed (the seal tool). */
 export interface PendingSeal {
@@ -114,6 +114,8 @@ export interface Doc {
   size: number;
   /** When ⌘S last wrote it this run (the status bar), or null. */
   savedAt: number | null;
+  /** The draft written for this tab (src/lib/drafts.ts), or null. */
+  draftId: string | null;
   /** Opened files its pages come from (released when the tab closes). */
   sources: number[];
   pages: PageItem[];

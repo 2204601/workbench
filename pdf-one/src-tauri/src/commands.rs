@@ -359,3 +359,43 @@ pub fn use_stamp<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<ImageIn
     let p = files::stamp_path(&data_dir(&app, "stamps")?, &id)?;
     store_image(&app.state::<AppState>(), read_small(&p)?)
 }
+
+// --------------------------------------------------------------- drafts
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftRequest {
+    /// The file the tab was opened from (names the draft).
+    pub path: String,
+    /// The tab's state (src/lib/drafts.ts).
+    pub json: String,
+    /// The pictures the state refers to (image store ids).
+    #[serde(default)]
+    pub images: Vec<u32>,
+}
+
+/// Writes a tab's draft (docs/SPEC.md「下書き」). Returns its id.
+#[tauri::command]
+pub fn write_draft<R: Runtime>(app: AppHandle<R>, request: DraftRequest) -> CmdResult<String> {
+    let dir = data_dir(&app, "drafts")?;
+    let state = app.state::<AppState>();
+    let images: Vec<(u32, Arc<crate::pdf::image::StoredImage>)> = {
+        let store = lock(&state.images);
+        request.images.iter().filter_map(|&id| store.get(id).map(|img| (id, img))).collect()
+    };
+    let refs: Vec<(u32, &[u8], &str)> = images
+        .iter()
+        .map(|(id, img)| (*id, img.bytes.as_slice(), if img.mime == "image/png" { "png" } else { "jpg" }))
+        .collect();
+    files::write_draft(&dir, &request.path, &request.json, &refs)
+}
+
+#[tauri::command]
+pub fn list_drafts<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<files::Draft>> {
+    Ok(files::list_drafts(&data_dir(&app, "drafts")?))
+}
+
+#[tauri::command]
+pub fn remove_draft<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<()> {
+    files::remove_draft(&data_dir(&app, "drafts")?, &id)
+}

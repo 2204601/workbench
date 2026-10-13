@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { ContextMenu } from "./components/ContextMenu";
 import { DetailsPanel } from "./components/DetailsPanel";
 import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dialogs";
+import { checkDrafts, RecoverDialog } from "./components/RecoverDialog";
 import { DropOverlay, useFileDrop } from "./components/DropZone";
 import { Organizer } from "./components/Organizer";
 import { Ribbon } from "./components/Ribbon";
@@ -25,6 +26,7 @@ import { openRequested, settleAll } from "./lib/actions";
 import { api } from "./lib/api";
 import { onCopy, onPaste } from "./lib/clipboard";
 import { runKey } from "./lib/commands";
+import { startDrafts } from "./lib/drafts";
 import { warn } from "./lib/log";
 import { installMenuBar } from "./lib/menuBar";
 import { setTextFont } from "./lib/text";
@@ -56,6 +58,8 @@ export default function App() {
     api.textFontFamily().then(setTextFont, () => setTextFont(null));
     const stopMenu = installMenuBar();
     const stopUpdate = scheduleUpdateCheck();
+    const stopDrafts = startDrafts();
+    void checkDrafts();
     const onKey = (e: KeyboardEvent) => void runKey(e);
     window.addEventListener("keydown", onKey);
     document.addEventListener("copy", onCopy);
@@ -88,6 +92,7 @@ export default function App() {
       gone = true;
       stopMenu();
       stopUpdate();
+      stopDrafts();
       unlisten?.();
       unclose?.();
       window.removeEventListener("keydown", onKey);
@@ -138,6 +143,7 @@ export default function App() {
       {dialog === "split" && <SplitDialog />}
       {dialog === "signature" && <SignatureDialog />}
       {dialog === "seal" && <SealDialog />}
+      {dialog === "recover" && <RecoverDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />

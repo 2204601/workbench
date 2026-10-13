@@ -123,6 +123,19 @@ export interface Stamp {
   name: string;
 }
 
+/** A tab's draft kept while editing (src-tauri/src/files.rs `Draft`). */
+export interface Draft {
+  id: string;
+  /** The file the tab was opened from. */
+  path: string;
+  /** Milliseconds since 1970. */
+  savedAt: number;
+  /** The tab's state as src/lib/drafts.ts wrote it. */
+  json: string;
+  /** Image store id → the picture's file in the draft's folder. */
+  images: [number, string][];
+}
+
 const bytes = (r: ArrayBuffer | Uint8Array | number[]) =>
   r instanceof Uint8Array ? r : r instanceof ArrayBuffer ? new Uint8Array(r) : new Uint8Array(r);
 
@@ -150,6 +163,10 @@ export const api = {
   addStamp: (path: string) => invoke<Stamp>("add_stamp", { path }),
   /** A picture drawn in the app (a signature), as PNG bytes, into the library. */
   addStampBytes: (data: Uint8Array) => invoke<Stamp>("add_stamp_bytes", data),
+
+  writeDraft: (request: { path: string; json: string; images: number[] }) => invoke<string>("write_draft", { request }),
+  listDrafts: () => invoke<Draft[]>("list_drafts"),
+  removeDraft: (id: string) => invoke<void>("remove_draft", { id }),
   removeStamp: (id: string) => invoke<void>("remove_stamp", { id }),
   useStamp: (id: string) => invoke<ImageInfo>("use_stamp", { id }),
 };

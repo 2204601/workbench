@@ -12,6 +12,7 @@ import { getSource, loadSource, releaseSource, type Source } from "./pdfjs";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { TEXT_PADDING, wrapText } from "./text";
 import { askSaveChoice } from "../components/Dialogs";
+import { dropDraft } from "./drafts";
 import { activeDoc, newUid, useStore, type Doc, type PageItem } from "../store";
 
 const st = () => useStore.getState();
@@ -39,7 +40,7 @@ function pagesOf(src: Source, opened: OpenedPdf): Snap {
 }
 
 /** Opens a file in Rust and pdf.js. On failure, nothing stays open. */
-async function openSource(path: string): Promise<{ src: Source; opened: OpenedPdf }> {
+export async function openSource(path: string): Promise<{ src: Source; opened: OpenedPdf }> {
   const opened = await api.openPdf(path);
   try {
     return { src: await loadSource(opened), opened };
@@ -71,6 +72,7 @@ export async function openPaths(paths: string[]) {
         openedPath: path,
         size: opened.size,
         savedAt: null,
+        draftId: null,
         sources: [src.id],
         ...snap,
         past: [],
@@ -172,7 +174,7 @@ function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
 }
 
 /** Values typed into form fields (pdf.js keeps them per document). */
-function formValues(d: Doc): FormEntry[] {
+export function formValues(d: Doc): FormEntry[] {
   const out: FormEntry[] = [];
   for (const id of d.sources) {
     const s = getSource(id);
@@ -233,6 +235,7 @@ export async function save(as = false, key?: string): Promise<boolean> {
   try {
     const r = await api.savePdf({ path, pages: buildPages(d), forms: formValues(d) });
     st().patchDoc({ savePath: r.path, name: baseName(r.path), dirty: false, signed: false, savedAt: Date.now() }, d.key);
+    void dropDraft(d.key);
     st().notify({
       title: "保存しました",
       detail: r.backup ? `${r.path}\n上書きする前の版はバックアップに残しました。` : r.path,
@@ -333,7 +336,9 @@ async function settle(d: Doc): Promise<boolean> {
     buttons: { yes: SAVE, no: DONT, cancel: CANCEL },
   });
   if (r === SAVE || r === "Yes") return save(false, d.key);
-  return r === DONT || r === "No";
+  const discard = r === DONT || r === "No";
+  if (discard) void dropDraft(d.key);
+  return discard;
 }
 
 /** Closes a tab, letting go of the files only it used. */
