@@ -1,0 +1,41 @@
+[package]
+name = "clip"
+version = "0.1.0"
+description = "Snippets and clipboard history, typed in from one shortcut"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix avoids a name clash with the bin target on Windows.
+name = "clip_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+# Opens System Settings at the Accessibility pane (macOS).
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# In-app updates (update.rs): the check, and the dialogs that offer it.
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
+# Launch at login, and the shortcut that brings up the popup.
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
+# A second launch (by hand while the login item already runs) only opens the
+# settings, instead of a second tray icon fighting over the shortcut.
+tauri-plugin-single-instance = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSApplication", "NSPasteboard", "NSResponder", "NSRunningApplication", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString", "NSThread"] }
+# Accessibility prompt (paste.rs) and system proxy lookup for the updater (proxy.rs).
+core-foundation-sys = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+# System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
