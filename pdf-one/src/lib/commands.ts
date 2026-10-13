@@ -195,8 +195,15 @@ export const COMMANDS: Command[] = [
     title: "サイドバー",
     icon: PanelLeft,
     keys: ["F4"],
-    checked: (s) => s.panel !== null,
-    run: (s) => s.setPanel(s.panel ? null : "pages"),
+    // The page organizer takes the sidebar's place: there the button shows
+    // it off, and brings back the pages with the sidebar.
+    checked: (s) => s.panel !== null && !s.organizer,
+    run: (s) => {
+      if (s.organizer) {
+        s.setOrganizer(false);
+        if (!s.panel) s.setPanel("pages");
+      } else s.setPanel(s.panel ? null : "pages");
+    },
   },
   {
     id: "view.organizer",
