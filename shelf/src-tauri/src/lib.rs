@@ -4,6 +4,7 @@ mod login_item;
 mod proxy;
 mod shelf;
 mod shortcut;
+mod tray_icon;
 mod update;
 
 use std::path::PathBuf;
@@ -211,7 +212,7 @@ fn setup_tray(app: &AppHandle, has_shortcut: bool) -> tauri::Result<()> {
     )?;
     app.manage(update::MenuEntry(update));
 
-    let mut tray = TrayIconBuilder::with_id("main")
+    let tray = TrayIconBuilder::with_id(tray_icon::ID)
         .tooltip(format!("Shelf v{}", app.package_info().version))
         .menu(&menu)
         // Any click opens the menu; showing / hiding the shelf is one of its items.
@@ -224,10 +225,7 @@ fn setup_tray(app: &AppHandle, has_shortcut: bool) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
+    tray_icon::apply(tray)?.build(app)?;
     Ok(())
 }
 
@@ -277,12 +275,15 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|window, event| match event {
             // Closing the shelf only hides it; quit from the tray menu.
-            if let WindowEvent::CloseRequested { api, .. } = event {
+            WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 let _ = window.hide();
             }
+            // Windows: the taskbar may have switched between light and dark.
+            WindowEvent::ThemeChanged(_) => tray_icon::refresh(window.app_handle()),
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             list_items,
