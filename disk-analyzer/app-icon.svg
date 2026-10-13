@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Disk Analyzer: a sunburst, folders around the middle and what is in them outside. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c2e35"/>
+      <stop offset="1" stop-color="#17181c"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <path d="M521.1 252.2 A260 260 0 0 1 649.8 732.5 L591.5 639.2 A150 150 0 0 0 517.2 362.1 Z" fill="#4c8dff" fill-opacity="1"/>
+  <path d="M634.1 741.6 A260 260 0 0 1 280.3 630.0 L378.3 580.1 A150 150 0 0 0 582.4 644.4 Z" fill="#f07a45" fill-opacity="1"/>
+  <path d="M272.7 613.6 A260 260 0 0 1 321.8 334.7 L402.3 409.7 A150 150 0 0 0 373.9 570.6 Z" fill="#2fc28a" fill-opacity="1"/>
+  <path d="M334.7 321.8 A260 260 0 0 1 502.9 252.2 L506.8 362.1 A150 150 0 0 0 409.7 402.3 Z" fill="#f2b233" fill-opacity="1"/>
+  <path d="M524.6 152.2 A360 360 0 0 1 869.3 468.1 L780.0 479.1 A270 270 0 0 0 521.4 242.2 Z" fill="#4c8dff" fill-opacity="0.62"/>
+  <path d="M871.5 493.2 A360 360 0 0 1 795.7 733.6 L724.8 678.2 A270 270 0 0 0 781.6 497.9 Z" fill="#4c8dff" fill-opacity="0.62"/>
+  <path d="M681.0 829.9 A360 360 0 0 1 315.9 813.9 L364.9 738.4 A270 270 0 0 0 638.8 750.4 Z" fill="#f07a45" fill-opacity="0.62"/>
+  <path d="M180.6 652.7 A360 360 0 0 1 169.6 400.8 L255.2 428.6 A270 270 0 0 0 263.5 617.5 Z" fill="#2fc28a" fill-opacity="0.62"/>
+  <path d="M266.5 248.7 A360 360 0 0 1 406.7 167.7 L433.1 253.8 A270 270 0 0 0 327.9 314.5 Z" fill="#f2b233" fill-opacity="0.62"/>
+  <circle cx="512" cy="512" r="118" fill="#e6e6e8"/>
+</svg>
