@@ -247,7 +247,14 @@ function Junction({ it, zoom }: { it: Placed; zoom: number }) {
   );
 }
 
-function OverlayItem({ o, lane, zoom, l }: { o: Overlay; lane: number; zoom: number; l: Layout }) {
+function OverlayItem({ o, lane, zoom, l, timeAt }: {
+  o: Overlay;
+  lane: number;
+  zoom: number;
+  l: Layout;
+  /** Timeline seconds under a pointer's clientX. */
+  timeAt: (clientX: number) => number;
+}) {
   const selected = useStore((s) => s.selection?.kind === "overlay" && s.selection.id === o.id);
   const top = RULER_H + VIDEO_H + 6 + lane * LANE_H;
   const left = tx(o.start, zoom);
@@ -260,9 +267,10 @@ function OverlayItem({ o, lane, zoom, l }: { o: Overlay; lane: number; zoom: num
     pointerDrag(e, {
       start: () => st().beginLive(),
       move: (dx, ev) => st().live(updateOverlay(base, o.id, apply(dx / zoom, ev))),
-      end: (moved) => {
+      end: (moved, ev) => {
         if (moved) st().endLive();
-        else if (st().time < o.start || st().time >= o.end) seek(o.start);
+        // A click: the playhead goes where it was clicked.
+        else seek(timeAt(ev.clientX));
       },
     });
   };
@@ -406,7 +414,11 @@ export function Timeline() {
       },
       end: (moved, ev) => {
         setMoving(null);
-        if (!moved) return;
+        // A click: the playhead goes where it was clicked.
+        if (!moved) {
+          seek(timeAtClient(ev.clientX));
+          return;
+        }
         const to = insertIndexAt(without, timeAtClient(ev.clientX));
         if (to !== it.index) st().commit(moveClip(base, it.clip.id, to));
       },
@@ -496,7 +508,7 @@ export function Timeline() {
             <Junction key={`j-${it.clip.id}`} it={it} zoom={zoom} />
           ))}
           {project.overlays.map((o) => (
-            <OverlayItem key={o.id} o={o} lane={laneOf.get(o.id) ?? 0} zoom={zoom} l={l} />
+            <OverlayItem key={o.id} o={o} lane={laneOf.get(o.id) ?? 0} zoom={zoom} l={l} timeAt={timeAtClient} />
           ))}
           {!l.items.length && (
             <div className="pointer-events-none absolute flex items-center px-4 text-xs text-dim" style={{ top: RULER_H, height: VIDEO_H, left: PAD }}>
