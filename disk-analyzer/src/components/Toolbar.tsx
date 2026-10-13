@@ -56,7 +56,7 @@ function Crumbs() {
   );
 }
 
-/** The three charts, side by side (⌘1 ⌘2 ⌘3). */
+/** The charts, side by side (⌘1 … ⌘5). */
 function ChartSwitch() {
   const chart = useStore((s) => s.chart);
   const setChart = useStore((s) => s.setChart);

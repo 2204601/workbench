@@ -172,7 +172,8 @@ svg.chart .mark {
   stroke: var(--color-bg);
   stroke-width: 1px;
 }
-svg.chart .mark.dir {
+svg.chart .mark.dir,
+svg.chart .hit.dir {
   cursor: pointer;
 }
 svg.chart .edge {

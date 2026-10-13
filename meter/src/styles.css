@@ -1,0 +1,409 @@
+/*
+ * Light or dark with the system (decisions/adr-0001). The dark values are
+ * Platform UI §1's; the graph colours are the dataviz reference palette's
+ * first two slots and status steps, each stepped for its surface.
+ */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --fg: #1c1f24;
+  --dim: #5f6570;
+  --line: #e3e6eb;
+  --grid: #e8e7e1;
+  --hover: #eef1f6;
+  --accent: #2a78d6;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --track: #e6eaf0;
+  --ok: #2a78d6;
+  --warn: #c98500;
+  --high: #d03b3b;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1f;
+    --surface: #232428;
+    --fg: #e6e6e8;
+    --dim: #9a9ba3;
+    --line: #34353b;
+    --grid: #303136;
+    --hover: #2c2d32;
+    --accent: #4c8dff;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --track: #34353b;
+    --ok: #3987e5;
+    --warn: #fab219;
+    --high: #e66767;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font: 12px/1.45 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  user-select: none;
+  overflow: hidden;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.dim {
+  color: var(--dim);
+}
+
+svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--dim);
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+/* ------------------------------------------------------------------ frame */
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 6px 14px;
+}
+
+.top h1 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.top p {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 290px;
+}
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.foot {
+  padding: 6px 14px 8px;
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+}
+
+/* ------------------------------------------------------------------- cards */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.head h2 {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+/* The number keeps the text colour; a dot beside it shows the level, as the
+ * tray icon's colour does. The number itself says how high it is, so the
+ * colour is never the only cue. */
+.value::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 6px 3px 0;
+  border-radius: 50%;
+  background: var(--ok);
+  vertical-align: middle;
+}
+
+.value[data-level="warn"]::before {
+  background: var(--warn);
+}
+
+.value[data-level="high"]::before {
+  background: var(--high);
+}
+
+.sub {
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.key i {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* ------------------------------------------------------------------ graphs */
+
+.chart {
+  position: relative;
+  margin-top: 8px;
+  height: 48px;
+}
+
+.chart canvas {
+  display: block;
+}
+
+.axis {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  color: var(--dim);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  padding: 0 2px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.tip {
+  position: absolute;
+  top: -4px;
+  z-index: 2;
+  min-width: 96px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tip div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tip i {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.tip span,
+.tip .when {
+  color: var(--dim);
+}
+
+.tip .when {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.cores {
+  display: flex;
+  gap: 2px;
+  height: 22px;
+  margin-top: 8px;
+}
+
+.core {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.core div {
+  width: 100%;
+  background: var(--series-1);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ---------------------------------------------------------- drives, apps */
+
+.drives,
+.apps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drives .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meter {
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.meter div {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ok);
+}
+
+.meter.warn div {
+  background: var(--warn);
+}
+
+.meter.high div {
+  background: var(--high);
+}
+
+.tabs {
+  display: flex;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.tabs button {
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.apps li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.apps .count {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.apps .num {
+  font-weight: 600;
+}
+
+.apps .bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.apps .bar div {
+  height: 100%;
+  background: var(--series-1);
+  border-radius: 2px;
+}
+
+.apps .empty {
+  display: block;
+  padding: 4px 0;
+}

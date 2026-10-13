@@ -1,6 +1,6 @@
 [package]
 name = "disk-analyzer"
-version = "0.1.0"
+version = "0.2.0"
 description = "フォルダやドライブの中で、何が容量を使っているかをグラフで見る"
 authors = ["2204601"]
 edition = "2021"

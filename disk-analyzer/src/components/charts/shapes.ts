@@ -16,6 +16,8 @@ export interface Shape {
   rect?: [number, number, number, number];
   fill: string;
   opacity: number;
+  /** Not drawn: a larger target for the pointer (a legend row, a bar's row). */
+  hit?: boolean;
 }
 
 export interface Label {
@@ -25,6 +27,9 @@ export interface Label {
   /** Size, under the name. */
   sub?: string;
   bold?: boolean;
+  /** In the dimmer ink. */
+  dim?: boolean;
+  anchor?: "middle" | "end";
 }
 
 export interface Layout {

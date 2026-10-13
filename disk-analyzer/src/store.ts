@@ -117,7 +117,8 @@ export const useStore = create<State>()((set, get) => ({
   result: null,
   folder: null,
   view: null,
-  chart: savedChart && savedChart in CHARTS ? savedChart : "sunburst",
+  // The bar chart first: the easiest to read. A chart picked before stays.
+  chart: savedChart && savedChart in CHARTS ? savedChart : "bar",
   hover: null,
   selected: null,
 
