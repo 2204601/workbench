@@ -5,10 +5,10 @@ import { nameOf, slotsOf, type ChartKind } from "../../lib/charts";
 import { itemMenu } from "../../lib/contextMenu";
 import { bytes, count, percent } from "../../lib/format";
 import { useStore } from "../../store";
-import { icicle, sunburst, sunburstCenter, treemapLayout } from "./layouts";
+import { barLayout, icicle, pieLayout, sunburst, sunburstCenter, treemapLayout } from "./layouts";
 import { fit, toHierarchy, type Layout, type Node, type Shape } from "./shapes";
 
-const LAYOUTS: Record<ChartKind, typeof sunburst> = { sunburst, treemap: treemapLayout, icicle };
+const LAYOUTS: Record<ChartKind, typeof sunburst> = { sunburst, treemap: treemapLayout, icicle, pie: pieLayout, bar: barLayout };
 
 function useSize<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -27,7 +27,7 @@ function useSize<T extends HTMLElement>() {
 }
 
 function ShapeEl({ s, i }: { s: Shape; i: number }) {
-  const cls = `mark${s.n.data.dir || s.n.depth === 0 ? " dir" : ""}`;
+  const cls = `${s.hit ? "hit" : "mark"}${s.n.data.dir || s.n.depth === 0 ? " dir" : ""}`;
   const style = { fill: s.fill, fillOpacity: s.opacity };
   if (s.rect) {
     const [x, y, w, h] = s.rect;
@@ -44,12 +44,12 @@ const Shapes = memo(function Shapes({ layout }: { layout: Layout }) {
         <ShapeEl key={i} s={s} i={i} />
       ))}
       {layout.labels.map((l, i) => (
-        <g key={i} className="label">
-          <text x={l.x} y={l.y} style={{ fontWeight: l.bold ? 600 : 400 }}>
+        <g key={i} className="label" textAnchor={l.anchor}>
+          <text x={l.x} y={l.y} className={l.dim ? "sub" : undefined} style={{ fontWeight: l.bold ? 600 : 400 }}>
             {l.text}
           </text>
           {l.sub && (
-            <text x={l.x} y={l.y + 14} className="sub">
+            <text x={l.x} y={l.y + 15} className="sub">
               {l.sub}
             </text>
           )}
@@ -62,7 +62,7 @@ const Shapes = memo(function Shapes({ layout }: { layout: Layout }) {
 /** An outline over the shape of `id` (the item pointed at, or the one picked). */
 function Outline({ layout, id, kind }: { layout: Layout; id: number | null; kind: "hover" | "selected" }) {
   if (id === null) return null;
-  const s = layout.shapes.find((x) => x.n.data.id === id && x.n.depth > 0);
+  const s = layout.shapes.find((x) => x.n.data.id === id && x.n.depth > 0 && !x.hit);
   if (!s) return null;
   const cls = `edge ${kind}`;
   if (s.rect) {
@@ -125,7 +125,7 @@ function Tooltip({ tip, total, box }: { tip: Tip; total: number; box: { w: numbe
         {bytes(n.size)}・{percent(n.size, total)}
         {(n.dir || n.id === null) && `・${count(n.files)} ファイル`}
       </div>
-      {n.id === null && <div className="mt-1 text-dim">小さな項目は右の一覧で見られます</div>}
+      {n.id === null && <div className="mt-1 text-dim">まとめた項目は右の一覧で見られます</div>}
     </div>
   );
 }
