@@ -184,10 +184,10 @@ pub fn text_string(s: &str) -> Object {
 /// Reads a text string in any of the encodings writers use.
 pub fn decode_text(bytes: &[u8]) -> String {
     if let Some(rest) = bytes.strip_prefix(&[0xfe, 0xff]) {
-        let units: Vec<u16> = rest.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+        let units: Vec<u16> = rest.as_chunks::<2>().0.iter().map(|c| u16::from_be_bytes(*c)).collect();
         String::from_utf16_lossy(&units)
     } else if let Some(rest) = bytes.strip_prefix(&[0xff, 0xfe]) {
-        let units: Vec<u16> = rest.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+        let units: Vec<u16> = rest.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect();
         String::from_utf16_lossy(&units)
     } else if let Some(rest) = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]) {
         String::from_utf8_lossy(rest).into_owned()

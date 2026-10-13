@@ -163,7 +163,7 @@ pub fn from_xobject(doc: &Document, id: ObjectId) -> Option<StoredImage> {
     let data = s.decompressed_content().ok().unwrap_or_else(|| s.content.clone());
     let n = (w * h) as usize;
     let rgb: Vec<[u8; 3]> = match super::get_name(d, b"ColorSpace")? {
-        b"DeviceRGB" if data.len() >= n * 3 => data.chunks_exact(3).take(n).map(|c| [c[0], c[1], c[2]]).collect(),
+        b"DeviceRGB" if data.len() >= n * 3 => data.as_chunks::<3>().0[..n].to_vec(),
         b"DeviceGray" if data.len() >= n => data.iter().take(n).map(|&g| [g, g, g]).collect(),
         _ => return None,
     };

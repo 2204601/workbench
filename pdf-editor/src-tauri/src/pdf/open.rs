@@ -242,7 +242,7 @@ fn convert(doc: &Document, id: ObjectId, d: &Dictionary, images: &mut ImageStore
                 b"Underline" => AnnotKind::Underline,
                 _ => AnnotKind::Strikeout,
             };
-            a.quads = q.chunks_exact(8).map(|c| c.try_into().unwrap()).collect();
+            a.quads = q.as_chunks::<8>().0.to_vec();
             if color.is_none() {
                 a.color = "#ffd400".into();
             }

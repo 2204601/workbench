@@ -164,7 +164,7 @@ impl Writer<'_> {
             }
             AnnotKind::Ink => {
                 let paths: Vec<&Vec<f64>> = a.paths.iter().filter(|p| p.len() >= 2).collect();
-                let rect = bbox_of(paths.iter().flat_map(|p| p.chunks_exact(2).map(|c| (c[0], c[1]))))
+                let rect = bbox_of(paths.iter().flat_map(|p| p.as_chunks::<2>().0.iter().map(|&[x, y]| (x, y))))
                     .ok_or("手書きの線がありません")?;
                 let rect = grow(rect, width / 2.0 + 1.0);
                 d.set(
@@ -180,7 +180,7 @@ impl Writer<'_> {
                 let mut c = Content::new();
                 c.gs("G0").stroke_rgb(color).op(&[width], "w").raw("1 J 1 j");
                 for p in paths {
-                    let mut pts = p.chunks_exact(2);
+                    let mut pts = p.as_chunks::<2>().0.iter();
                     if let Some(first) = pts.next() {
                         c.move_to(first[0], first[1]);
                         let mut any = false;
