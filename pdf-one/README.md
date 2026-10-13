@@ -115,7 +115,8 @@ Linux で Rust をビルドするには `libwebkit2gtk-4.1-dev` などが要る�
 | `src-tauri/icons/` | アプリアイコン（`app-icon.svg` から `npx tauri icon` で生成） |
 | [docs/SPEC.md](docs/SPEC.md) | 機能仕様 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 設計（PDF をどこで読み書きするか、座標、フォント、テスト） |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | これから |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | これから（Acrobat との対応表、版ごとの計画） |
+| [docs/UX.md](docs/UX.md) | 画面の決まり（編集が前提、やさしい言葉と配置） |
 
 雛形（`proxy.rs`、`settings.rs`、`log.ts`、`titleBar.ts`、`update.ts`、`menuBar.ts`、`Toasts.tsx`、ビルド設定）は [Disk Analyzer](../disk-analyzer/) から写した。desktop-base ができたら差し替える。
 
