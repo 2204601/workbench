@@ -1,6 +1,6 @@
 [package]
 name = "video-studio"
-version = "0.1.1"
+version = "0.1.2"
 description = "動画を切って並べ、文字やスタンプ、切り替えを入れて書き出す"
 authors = ["2204601"]
 edition = "2021"
