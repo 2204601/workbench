@@ -10,6 +10,7 @@
 | [Disk Analyzer](disk-analyzer/) | ドライブやフォルダの中で何が容量を使っているかを、DaisyDisk 風のグラフ（サンバースト・ツリーマップ・アイシクル）と一覧で見るアプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=disk-analyzer) |
 | [Meter](meter/) | CPU・メモリ・ディスク・ネットワークの使用状況をタスクトレイ（macOS はメニューバー）にいつも出し、クリックでグラフと重いアプリの一覧を見るアプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=meter) |
 | [Video Studio](video-studio/) | 動画を切って並べ、文字やスタンプ、切り替えのアニメーションを入れて MP4 に書き出す、かんたんな動画編集アプリ（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=video-studio) |
+| [PDF One](pdf-one/) | PDF を見る・ページを整理する（並べ替え・回転・結合・分割）・書き込む（マーカー、テキスト、付箋、手書き、図形、印鑑）・フォームに入力するアプリ。目標は Acrobat（Windows / macOS） | [Releases](https://github.com/2204601/workbench/releases?q=pdf-one) |
 
 ## リポジトリの決まりごと
 

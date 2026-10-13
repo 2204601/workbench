@@ -1,0 +1,148 @@
+// Typed wrappers around the Rust commands in src-tauri/src/commands.rs.
+// Components call these, never `invoke` directly; the browser mock
+// (src/dev/mockBackend.ts) answers the same names.
+import { invoke } from "@tauri-apps/api/core";
+
+/** settings.json (src-tauri/src/settings.rs). */
+export interface AppSettings {
+  autoUpdate: boolean;
+  /** The name written on annotations; empty = the OS user name. */
+  author: string;
+  /** Newest first. */
+  recent: string[];
+}
+
+export type AnnotKind =
+  | "highlight"
+  | "underline"
+  | "strikeout"
+  | "ink"
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text"
+  | "note"
+  | "image";
+
+/**
+ * An annotation (src-tauri/src/pdf/mod.rs `Annot`). Coordinates are in the
+ * page's PDF space: points, origin bottom left, before the page's rotation.
+ */
+export interface Annot {
+  id: string;
+  kind: AnnotKind;
+  /** "#rrggbb": stroke, marker or text. */
+  color: string;
+  opacity: number;
+  /** Line width in points; for text boxes the border (0 = none). */
+  width: number;
+  fill: string | null;
+  /** [x1, y1, x2, y2], x1 < x2, y1 < y2. */
+  rect: [number, number, number, number] | null;
+  /** Text markup: per line, upper left, upper right, lower left, lower right. */
+  quads: number[][];
+  /** Ink strokes: x, y, x, y… */
+  paths: number[][];
+  /** Lines and arrows: x1, y1, x2, y2; the arrow head is at the end. */
+  line: [number, number, number, number] | null;
+  text: string;
+  /** The text box's lines as wrapped on screen; filled in when saving. */
+  lines: string[];
+  fontSize: number;
+  /** Text boxes and pictures: 0, 90, 180 or 270. */
+  rotation: number;
+  /** A picture in Rust's image store. */
+  image: number | null;
+  /** The comment. */
+  contents: string;
+  author: string;
+  /** PDF date (D:YYYYMMDDHHmmSS…). */
+  modified: string;
+}
+
+export interface PageAnnot {
+  /** The page's index in its document. */
+  page: number;
+  annot: Annot;
+}
+
+export interface OpenedPdf {
+  id: number;
+  path: string;
+  name: string;
+  size: number;
+  /** Why it can only be viewed; null when it can be edited. */
+  readOnly: string | null;
+  /** Has a digital signature, which saving breaks. */
+  signed: boolean;
+  annots: PageAnnot[];
+}
+
+/** A page of the file to write (src-tauri/src/pdf/compose.rs `PageSpec`). */
+export interface PageSpec {
+  /** The opened document; null for a blank page. */
+  source: number | null;
+  index: number;
+  /** Added to the page's own rotation. */
+  rotate: number;
+  /** A blank page's size in points. */
+  size: [number, number] | null;
+  annots: Annot[];
+}
+
+/** A form value typed in (pdf.js's annotation storage). */
+export interface FormEntry {
+  source: number;
+  /** pdf.js's widget id ("12R"). */
+  id: string;
+  value: boolean | string | string[];
+}
+
+export interface Saved {
+  path: string;
+  size: number;
+  /** The file it replaced, kept in the backups folder. */
+  backup: string | null;
+}
+
+export interface ImageInfo {
+  id: number;
+  width: number;
+  height: number;
+}
+
+/** A picture in the stamp library. */
+export interface Stamp {
+  id: string;
+  name: string;
+}
+
+const bytes = (r: ArrayBuffer | Uint8Array | number[]) =>
+  r instanceof Uint8Array ? r : r instanceof ArrayBuffer ? new Uint8Array(r) : new Uint8Array(r);
+
+export const api = {
+  getAppSettings: () => invoke<AppSettings>("get_app_settings"),
+  setAppSettings: (settings: AppSettings) => invoke<AppSettings>("set_app_settings", { settings }),
+  osUserName: () => invoke<string>("os_user_name"),
+  textFontFamily: () => invoke<string | null>("text_font_family"),
+  systemProxy: (url: string) => invoke<string | null>("system_proxy", { url }),
+  revealLog: () => invoke<void>("reveal_log"),
+  revealBackups: () => invoke<void>("reveal_backups"),
+  revealFile: (path: string) => invoke<void>("reveal_file", { path }),
+  takeOpenRequests: () => invoke<string[]>("take_open_requests"),
+
+  openPdf: (path: string) => invoke<OpenedPdf>("open_pdf", { path }),
+  /** What pdf.js shows for document `id`; can be fetched once. */
+  pdfViewBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("pdf_view_bytes", { id })),
+  closePdf: (id: number) => invoke<void>("close_pdf", { id }),
+  savePdf: (request: { path: string; pages: PageSpec[]; forms: FormEntry[] }) => invoke<Saved>("save_pdf", { request }),
+
+  addImage: (path: string) => invoke<ImageInfo>("add_image", { path }),
+  addImageBytes: (data: Uint8Array) => invoke<ImageInfo>("add_image_bytes", data),
+  imageBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("image_bytes", { id })),
+  listStamps: () => invoke<Stamp[]>("list_stamps"),
+  addStamp: (path: string) => invoke<Stamp>("add_stamp", { path }),
+  removeStamp: (id: string) => invoke<void>("remove_stamp", { id }),
+  useStamp: (id: string) => invoke<ImageInfo>("use_stamp", { id }),
+};
