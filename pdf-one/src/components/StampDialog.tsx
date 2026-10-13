@@ -46,7 +46,7 @@ export function StampDialog() {
   const add = async () => {
     const picked = await open({
       multiple: true,
-      title: "スタンプに加える画像",
+      title: "ライブラリに加える画像",
       filters: [{ name: "画像（PNG・JPEG）", extensions: ["png", "jpg", "jpeg", "PNG", "JPG", "JPEG"] }],
     }).catch(() => null);
     if (!picked) return;
@@ -57,7 +57,7 @@ export function StampDialog() {
   };
 
   return (
-    <Modal title="画像・印鑑" onClose={close} width={560}>
+    <Modal title="印鑑・画像" onClose={close} width={560}>
       <p className="mb-3 text-xs leading-relaxed text-dim">
         選んでからページをクリックすると置けます（ドラッグで大きさも）。印鑑や署名は、背景が透明な PNG にしておくと書類になじみます。
       </p>
@@ -67,7 +67,7 @@ export function StampDialog() {
             <button
               disabled={!s.img}
               onClick={() => s.img && placePicture(s.img)}
-              className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-lg border border-line bg-[repeating-conic-gradient(#3a3b40_0_25%,#2f3035_0_50%)] bg-[length:16px_16px] p-2 hover:border-accent"
+              className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-lg border border-line bg-[repeating-conic-gradient(var(--raised)_0_25%,var(--panel)_0_50%)] bg-[length:16px_16px] p-2 hover:border-accent"
               title={s.name}
             >
               {s.url ? <img src={s.url} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-danger">読めません</span>}
@@ -93,7 +93,7 @@ export function StampDialog() {
       </div>
       {stamps?.length === 0 && <p className="mt-3 text-xs text-dim">ライブラリはまだ空です。よく使う印鑑や署名の画像を加えておけます。</p>}
       <div className="mt-4 flex items-center gap-2 border-t border-line pt-3">
-        <button onClick={() => void chooseImage()} className="flex items-center gap-1.5 rounded-md bg-raised px-3 py-1.5 hover:bg-white/10">
+        <button onClick={() => void chooseImage()} className="flex items-center gap-1.5 rounded-md bg-raised px-3 py-1.5 hover:bg-hover">
           <ImagePlus size={14} />
           画像ファイルを選ぶ…
         </button>

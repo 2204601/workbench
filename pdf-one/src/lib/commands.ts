@@ -1,14 +1,18 @@
 /**
  * Every operation of the app, defined once (Platform Architecture §3). The
- * menu bar, the toolbar, the right-click menus, the key handling and the
- * shortcut list are made from this table, so a name and its key read the
- * same everywhere. Add an operation here first, never straight into a menu
- * or a key handler.
+ * menu bar, the ribbon, the right-click menus, the key handling, the
+ * shortcut list and 何をしますか are made from this table, so a name and its
+ * key read the same everywhere. Add an operation here first, never straight
+ * into a menu or a key handler.
+ *
+ * Names are the everyday words of docs/UX.md §3 (書き込み, not 注釈; 印鑑, not
+ * スタンプ). `words` are other things people might type to find them.
  */
 import {
   ArrowRight,
   Circle,
   Columns2,
+  Copy,
   Download,
   FileInput,
   FilePlus2,
@@ -20,6 +24,7 @@ import {
   Minus,
   MousePointer2,
   PanelLeft,
+  PanelRight,
   PenLine,
   Plus,
   Redo2,
@@ -50,14 +55,14 @@ import {
   save,
 } from "./actions";
 import { api } from "./api";
-import { moved, updateAnnot } from "./edit";
+import { addAnnot, moved, updateAnnot } from "./edit";
 import { comboMatches, fromField } from "./keys";
 import { invert, viewportTransform } from "./geometry";
 import { pageBox, stepZoom } from "./layout";
 import { findNext } from "./search";
 import { checkForUpdate } from "./update";
 import { bringToFront, deleteSelectedAnnot } from "../components/Overlay";
-import { activeDoc, useStore, type S, type Tool } from "../store";
+import { activeDoc, findAnnot, newAnnotId, useStore, type S, type Tool } from "../store";
 
 export interface Command {
   id: string;
@@ -68,6 +73,8 @@ export interface Command {
   icon?: LucideIcon;
   /** The first is the one menus show; ⌘ / Ctrl combos become the menu's accelerator. */
   keys?: string[];
+  /** Other words people type to find it (何をしますか). */
+  words?: string[];
   enabled?: (s: S) => boolean;
   checked?: (s: S) => boolean;
   run: (s: S) => void;
@@ -105,46 +112,82 @@ const nudge = (s: S, dx: number, dy: number) => {
   s.commit((x) => updateAnnot(x, id, (a) => moved(a, px, py)));
 };
 
-export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key: string }[] = [
-  { tool: "select", title: "選択", icon: MousePointer2, key: "V" },
-  { tool: "hand", title: "手のひら（スクロール）", icon: Hand, key: "H" },
-  { tool: "highlight", title: "マーカー", icon: Highlighter, key: "M" },
-  { tool: "underline", title: "下線", icon: Underline, key: "U" },
-  { tool: "strikeout", title: "取り消し線", icon: Strikethrough, key: "K" },
-  { tool: "text", title: "テキスト", icon: Type, key: "T" },
-  { tool: "note", title: "付箋（コメント）", icon: StickyNote, key: "N" },
-  { tool: "ink", title: "ペン（手書き）", icon: PenLine, key: "P" },
-  { tool: "rect", title: "四角形", icon: Square, key: "R" },
-  { tool: "ellipse", title: "楕円", icon: Circle, key: "O" },
-  { tool: "line", title: "直線", icon: Minus, key: "L" },
-  { tool: "arrow", title: "矢印", icon: ArrowRight, key: "A" },
+/** A copy of the selected annotation, a little down and right, selected. */
+const duplicate = (s: S) => {
+  const d = activeDoc(s);
+  const found = d && findAnnot(d, d.selectedAnnot);
+  if (!d || !found) return;
+  const a = { ...found.annot, ...moved(found.annot, 10, -10), id: newAnnotId(), modified: "", author: s.author };
+  s.commit((x) => addAnnot(x, found.uid, a));
+  s.patchDoc({ selectedAnnot: a.id });
+};
+
+export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key: string; words?: string[] }[] = [
+  { tool: "select", title: "選択", icon: MousePointer2, key: "V", words: ["選ぶ", "矢印", "カーソル"] },
+  { tool: "hand", title: "手のひら", icon: Hand, key: "H", words: ["スクロール", "動かす", "つかむ"] },
+  { tool: "highlight", title: "マーカー", icon: Highlighter, key: "M", words: ["ハイライト", "蛍光ペン", "黄色", "強調"] },
+  { tool: "underline", title: "下線", icon: Underline, key: "U", words: ["アンダーライン"] },
+  { tool: "strikeout", title: "取り消し線", icon: Strikethrough, key: "K", words: ["打ち消し", "消し線", "訂正"] },
+  { tool: "text", title: "文字を置く", icon: Type, key: "T", words: ["テキスト", "文字", "入力", "書く", "記入", "タイプ"] },
+  { tool: "note", title: "付箋", icon: StickyNote, key: "N", words: ["コメント", "メモ", "ノート"] },
+  { tool: "ink", title: "ペン", icon: PenLine, key: "P", words: ["手書き", "サイン", "署名", "インク", "描く"] },
+  { tool: "rect", title: "四角", icon: Square, key: "R", words: ["四角形", "枠", "矩形", "囲む"] },
+  { tool: "ellipse", title: "丸", icon: Circle, key: "O", words: ["楕円", "円", "囲む"] },
+  { tool: "line", title: "線", icon: Minus, key: "L", words: ["直線"] },
+  { tool: "arrow", title: "矢印", icon: ArrowRight, key: "A", words: ["やじるし"] },
 ];
 
 export const COMMANDS: Command[] = [
-  { id: "file.open", title: "開く…", icon: FolderOpen, keys: ["Mod+O"], run: () => void chooseAndOpen() },
-  { id: "file.save", title: "保存", icon: Save, keys: ["Mod+S"], enabled: editable, run: () => void save(false) },
-  { id: "file.saveAs", title: "名前を付けて保存…", keys: ["Mod+Shift+S"], enabled: editable, run: () => void save(true) },
-  { id: "file.close", title: "タブを閉じる", icon: X, keys: ["Mod+W"], enabled: hasDoc, run: () => void closeDoc() },
+  { id: "file.open", title: "開く…", icon: FolderOpen, keys: ["Mod+O"], words: ["ひらく", "読み込む", "ファイル"], run: () => void chooseAndOpen() },
+  { id: "file.save", title: "保存", icon: Save, keys: ["Mod+S"], words: ["セーブ", "上書き", "しまう"], enabled: editable, run: () => void save(false) },
+  {
+    id: "file.saveAs",
+    title: "名前を付けて保存…",
+    keys: ["Mod+Shift+S"],
+    words: ["別名", "新しいファイル", "コピーを保存"],
+    enabled: editable,
+    run: () => void save(true),
+  },
+  { id: "file.close", title: "タブを閉じる", icon: X, keys: ["Mod+W"], words: ["閉じる"], enabled: hasDoc, run: () => void closeDoc() },
   {
     id: "file.backups",
     title: "バックアップのフォルダを開く",
+    words: ["前の版", "戻す", "上書き前"],
     run: (s) => void api.revealBackups().catch((e) => s.toast(String(e), true)),
   },
 
-  { id: "edit.undo", title: "取り消す", icon: Undo2, keys: ["Mod+Z"], enabled: (s) => !!activeDoc(s)?.past.length, run: (s) => s.undo() },
+  {
+    id: "edit.undo",
+    title: "元に戻す",
+    icon: Undo2,
+    keys: ["Mod+Z"],
+    words: ["取り消す", "アンドゥ", "戻る", "やり直し"],
+    enabled: (s) => !!activeDoc(s)?.past.length,
+    run: (s) => s.undo(),
+  },
   {
     id: "edit.redo",
     title: "やり直す",
     icon: Redo2,
     keys: ["Mod+Shift+Z", "Mod+Y"],
+    words: ["リドゥ", "進む"],
     enabled: (s) => !!activeDoc(s)?.future.length,
     run: (s) => s.redo(),
   },
-  { id: "annot.delete", title: "注釈を削除", icon: Trash2, keys: ["Delete", "Backspace"], enabled: annotSelected, run: () => deleteSelectedAnnot() },
-  { id: "annot.front", title: "最前面へ", enabled: annotSelected, run: () => bringToFront() },
+  {
+    id: "annot.delete",
+    title: "書き込みを削除",
+    icon: Trash2,
+    keys: ["Delete", "Backspace"],
+    words: ["消す", "注釈"],
+    enabled: annotSelected,
+    run: () => deleteSelectedAnnot(),
+  },
+  { id: "annot.duplicate", title: "書き込みを複製", icon: Copy, keys: ["Mod+D"], words: ["コピー", "同じものをもう一つ"], enabled: annotSelected, run: duplicate },
+  { id: "annot.front", title: "最前面へ", enabled: annotSelected, words: ["手前", "上に"], run: () => bringToFront() },
   {
     id: "edit.deselect",
-    title: "選択を解除・選択ツールに戻す",
+    title: "選択を解除・「選択」に戻す",
     keys: ["Esc"],
     enabled: (s) => hasDoc(s) && (s.tool !== "select" || !!activeDoc(s)?.selectedAnnot || s.search.open),
     run: (s) => {
@@ -158,18 +201,20 @@ export const COMMANDS: Command[] = [
     title: "検索",
     icon: Search,
     keys: ["Mod+F"],
+    words: ["探す", "さがす", "見つける", "文字を探す"],
     enabled: hasDoc,
     run: (s) => s.setSearch({ open: true, focusSeq: s.search.focusSeq + 1 }),
   },
   { id: "edit.findNext", title: "次を検索", keys: ["Mod+G"], enabled: (s) => s.search.results.length > 0, run: () => findNext(1) },
   { id: "edit.findPrev", title: "前を検索", keys: ["Mod+Shift+G"], enabled: (s) => s.search.results.length > 0, run: () => findNext(-1) },
 
-  { id: "view.zoomIn", title: "拡大", icon: Plus, keys: ["Mod+=", "Mod++", "Mod+;"], enabled: hasDoc, run: (s) => zoomBy(s, 1) },
-  { id: "view.zoomOut", title: "縮小", icon: Minus, keys: ["Mod+-"], enabled: hasDoc, run: (s) => zoomBy(s, -1) },
+  { id: "view.zoomIn", title: "拡大", icon: Plus, keys: ["Mod+=", "Mod++", "Mod+;"], words: ["大きく", "ズーム"], enabled: hasDoc, run: (s) => zoomBy(s, 1) },
+  { id: "view.zoomOut", title: "縮小", icon: Minus, keys: ["Mod+-"], words: ["小さく", "ズーム"], enabled: hasDoc, run: (s) => zoomBy(s, -1) },
   {
     id: "view.fitPage",
     title: "ページ全体",
     keys: ["Mod+0"],
+    words: ["全体を見る", "1 ページ"],
     enabled: hasDoc,
     checked: (s) => activeDoc(s)?.zoom.mode === "fit-page",
     run: (s) => s.patchDoc({ zoom: { mode: "fit-page" } }),
@@ -178,6 +223,7 @@ export const COMMANDS: Command[] = [
     id: "view.actualSize",
     title: "実際のサイズ（100%）",
     keys: ["Mod+1"],
+    words: ["原寸", "等倍"],
     enabled: hasDoc,
     run: (s) => s.patchDoc({ zoom: { mode: "scale", value: 1 } }),
   },
@@ -186,17 +232,19 @@ export const COMMANDS: Command[] = [
     title: "幅に合わせる",
     icon: Columns2,
     keys: ["Mod+2"],
+    words: ["横幅"],
     enabled: hasDoc,
     checked: (s) => activeDoc(s)?.zoom.mode === "fit-width",
     run: (s) => s.patchDoc({ zoom: { mode: "fit-width" } }),
   },
   {
     id: "view.panel",
-    title: "サイドバー",
+    title: "一覧（ページ・書き込み・しおり）",
     icon: PanelLeft,
     keys: ["F4"],
-    // The page organizer takes the sidebar's place: there the button shows
-    // it off, and brings back the pages with the sidebar.
+    words: ["サイドバー", "サムネイル", "左のパネル", "目次"],
+    // The page organizer takes the list's place: there the button shows
+    // it off, and brings back the pages with the list.
     checked: (s) => s.panel !== null && !s.organizer,
     run: (s) => {
       if (s.organizer) {
@@ -206,10 +254,19 @@ export const COMMANDS: Command[] = [
     },
   },
   {
+    id: "view.details",
+    title: "詳細（選んだものの色や大きさ）",
+    icon: PanelRight,
+    words: ["プロパティ", "色", "太さ", "右のパネル", "設定"],
+    checked: (s) => s.details,
+    run: (s) => s.setDetails(!s.details),
+  },
+  {
     id: "view.organizer",
-    title: "ページを整理",
+    title: "すべてのページを並べる",
     icon: LayoutGrid,
     keys: ["Mod+Shift+O"],
+    words: ["ページを整理", "並べ替え", "順番", "入れ替え", "サムネイル", "整理"],
     enabled: hasDoc,
     checked: (s) => s.organizer,
     run: (s) => s.setOrganizer(!s.organizer),
@@ -219,36 +276,69 @@ export const COMMANDS: Command[] = [
   { id: "go.prev", title: "前のページ", keys: ["ArrowLeft", "PageUp"], enabled: (s) => hasDoc(s) && !annotSelected(s), run: (s) => scrollToPage(Math.max(0, activeDoc(s)!.page - 1)) },
   { id: "go.first", title: "最初のページ", keys: ["Home"], enabled: hasDoc, run: () => scrollToPage(0) },
   { id: "go.last", title: "最後のページ", keys: ["End"], enabled: hasDoc, run: (s) => scrollToPage(activeDoc(s)!.pages.length - 1) },
-  { id: "annot.nudgeLeft", title: "注釈を左へ（⇧で大きく）", keys: ["ArrowLeft", "Shift+ArrowLeft"], enabled: annotSelected, run: (s) => nudge(s, -nudgeStep, 0) },
-  { id: "annot.nudgeRight", title: "注釈を右へ", keys: ["ArrowRight", "Shift+ArrowRight"], enabled: annotSelected, run: (s) => nudge(s, nudgeStep, 0) },
-  { id: "annot.nudgeUp", title: "注釈を上へ", keys: ["ArrowUp", "Shift+ArrowUp"], enabled: annotSelected, run: (s) => nudge(s, 0, -nudgeStep) },
-  { id: "annot.nudgeDown", title: "注釈を下へ", keys: ["ArrowDown", "Shift+ArrowDown"], enabled: annotSelected, run: (s) => nudge(s, 0, nudgeStep) },
+  { id: "annot.nudgeLeft", title: "書き込みを左へ（⇧で大きく）", keys: ["ArrowLeft", "Shift+ArrowLeft"], enabled: annotSelected, run: (s) => nudge(s, -nudgeStep, 0) },
+  { id: "annot.nudgeRight", title: "書き込みを右へ", keys: ["ArrowRight", "Shift+ArrowRight"], enabled: annotSelected, run: (s) => nudge(s, nudgeStep, 0) },
+  { id: "annot.nudgeUp", title: "書き込みを上へ", keys: ["ArrowUp", "Shift+ArrowUp"], enabled: annotSelected, run: (s) => nudge(s, 0, -nudgeStep) },
+  { id: "annot.nudgeDown", title: "書き込みを下へ", keys: ["ArrowDown", "Shift+ArrowDown"], enabled: annotSelected, run: (s) => nudge(s, 0, nudgeStep) },
 
-  { id: "page.rotateRight", title: "ページを右に回転", icon: RotateCw, keys: ["Mod+Shift+R"], enabled: editable, run: () => rotateTarget(90) },
-  { id: "page.rotateLeft", title: "ページを左に回転", icon: RotateCcw, keys: ["Mod+Shift+L"], enabled: editable, run: () => rotateTarget(-90) },
-  { id: "page.delete", title: "ページを削除", icon: Trash2, enabled: editable, run: () => deleteTargetPages() },
-  { id: "page.insertBlank", title: "白紙のページを挿入", icon: FilePlus2, enabled: editable, run: () => insertBlankPage() },
-  { id: "page.insertFile", title: "ファイルからページを挿入…", icon: FileInput, keys: ["Mod+Shift+I"], enabled: editable, run: () => void insertFromFiles() },
-  { id: "page.extract", title: "ページを書き出す…", icon: Download, enabled: editable, run: () => void extractPages() },
-  { id: "page.split", title: "ページごとに分割…", enabled: editable, run: (s) => s.openDialog("split") },
+  {
+    id: "page.rotateRight",
+    title: "右に回転",
+    icon: RotateCw,
+    keys: ["Mod+Shift+R"],
+    words: ["ページを回転", "向き", "横向き", "縦向き", "回す"],
+    enabled: editable,
+    run: () => rotateTarget(90),
+  },
+  { id: "page.rotateLeft", title: "左に回転", icon: RotateCcw, keys: ["Mod+Shift+L"], words: ["ページを回転", "回す"], enabled: editable, run: () => rotateTarget(-90) },
+  { id: "page.delete", title: "ページを削除", icon: Trash2, words: ["ページを消す", "いらないページ"], enabled: editable, run: () => deleteTargetPages() },
+  { id: "page.insertBlank", title: "白紙を足す", icon: FilePlus2, words: ["空白のページ", "新しいページ", "ページを追加", "挿入"], enabled: editable, run: () => insertBlankPage() },
+  {
+    id: "page.insertFile",
+    title: "ファイルからページを足す…",
+    icon: FileInput,
+    keys: ["Mod+Shift+I"],
+    words: ["つなげる", "結合", "合体", "マージ", "挿入", "ほかの PDF", "まとめる"],
+    enabled: editable,
+    run: () => void insertFromFiles(),
+  },
+  {
+    id: "page.extract",
+    title: "ページを抜き出す…",
+    icon: Download,
+    words: ["書き出す", "取り出す", "分ける", "一部だけ", "抽出"],
+    enabled: editable,
+    run: () => void extractPages(),
+  },
+  { id: "page.split", title: "ページごとに分割…", words: ["分ける", "ばらす", "何ページずつ"], enabled: editable, run: (s) => s.openDialog("split") },
 
   ...TOOLS.map(
-    ({ tool, title, icon, key }): Command => ({
+    ({ tool, title, icon, key, words }): Command => ({
       id: `tool.${tool}`,
       title,
       icon,
       keys: [key],
+      words,
       enabled: (s) => hasDoc(s) && (tool === "select" || tool === "hand" || editable(s)),
       checked: (s) => s.tool === tool,
       run: (s) => s.setTool(tool),
     }),
   ),
-  { id: "tool.image", title: "画像・印鑑…", icon: ImagePlus, keys: ["I"], enabled: editable, checked: (s) => s.tool === "image", run: (s) => s.openDialog("stamps") },
-  { id: "tool.imageFile", title: "画像ファイルを置く…", icon: Stamp, enabled: editable, run: () => void chooseImage() },
+  {
+    id: "tool.image",
+    title: "印鑑・画像…",
+    icon: Stamp,
+    keys: ["I"],
+    words: ["スタンプ", "ハンコ", "判子", "はんこ", "社判", "署名", "サイン", "写真", "ロゴ", "ライブラリ"],
+    enabled: editable,
+    checked: (s) => s.tool === "image",
+    run: (s) => s.openDialog("stamps"),
+  },
+  { id: "tool.imageFile", title: "画像ファイルを置く…", icon: ImagePlus, words: ["写真", "PNG", "JPEG", "画像を入れる"], enabled: editable, run: () => void chooseImage() },
 
-  { id: "app.settings", title: "設定…", keys: ["Mod+,"], run: (s) => s.openDialog("settings") },
-  { id: "app.checkUpdate", title: "アップデートを確認…", run: () => void checkForUpdate(true) },
-  { id: "help.shortcuts", title: "キーボードショートカット", keys: ["?"], run: (s) => s.openDialog("shortcuts") },
+  { id: "app.settings", title: "設定…", keys: ["Mod+,"], words: ["名前", "作成者", "文字の大きさ", "大きく", "アップデート"], run: (s) => s.openDialog("settings") },
+  { id: "app.checkUpdate", title: "アップデートを確認…", words: ["更新", "新しいバージョン"], run: () => void checkForUpdate(true) },
+  { id: "help.shortcuts", title: "キーボードショートカット", keys: ["?"], words: ["キー", "早わざ"], run: (s) => s.openDialog("shortcuts") },
   {
     id: "help.log",
     title: "ログを表示",
@@ -270,6 +360,9 @@ export function command(id: string): Command {
 export const isEnabled = (c: Command, s: S) => c.enabled?.(s) ?? true;
 
 export const labelOf = (c: Command, s: S) => c.label?.(s) ?? c.title;
+
+/** The name without a trailing "…" (buttons, tooltips). */
+export const plainTitle = (c: Command) => c.title.replace(/…$/, "");
 
 let lastRun = { id: "", by: "", at: 0 };
 

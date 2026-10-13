@@ -1,4 +1,4 @@
-import { Copy, Highlighter, Strikethrough, Underline } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Highlighter, Strikethrough, Underline } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AnnotKind } from "../lib/api";
 import { addAnnot } from "../lib/edit";
@@ -192,7 +192,7 @@ export function Viewer({ d }: { d: Doc }) {
       lay.geoms.map((g) => (
         <div
           key={g.uid}
-          className="absolute bg-white shadow-lg shadow-black/40"
+          className="absolute bg-white shadow-md"
           style={{ left: g.left, top: g.top, width: g.width, height: g.height }}
         />
       )),
@@ -327,7 +327,7 @@ export function Viewer({ d }: { d: Doc }) {
   return (
     <div
       ref={scroller}
-      className="pdfViewer relative min-h-0 min-w-0 flex-1 overflow-auto bg-[#2a2b30] outline-none"
+      className="pdfViewer relative min-h-0 min-w-0 flex-1 overflow-auto bg-canvas outline-none"
       style={{ cursor }}
       onScroll={onScroll}
       onPointerDown={onPointerDown}
@@ -359,6 +359,20 @@ export function Viewer({ d }: { d: Doc }) {
 
 const NONE: SearchMatch[] = [];
 
+/** Up and down through search results, from the search bar. */
+export function SearchNav({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
+  return (
+    <>
+      <button onClick={onPrev} className="rounded p-1 hover:bg-hover" aria-label="前を検索" title="前を検索">
+        <ChevronUp size={15} />
+      </button>
+      <button onClick={onNext} className="rounded p-1 hover:bg-hover" aria-label="次を検索" title="次を検索">
+        <ChevronDown size={15} />
+      </button>
+    </>
+  );
+}
+
 function copySelection() {
   const text = window.getSelection()?.toString() ?? "";
   if (text) void navigator.clipboard.writeText(text).then(() => st().notify({ title: "コピーしました", duration: 1500 }));
@@ -375,7 +389,7 @@ function SelectionPopup({ at, onPick }: { at: { x: number; y: number }; onPick: 
   ];
   return (
     <div
-      className="absolute z-20 flex animate-fade-in gap-0.5 rounded-lg border border-line bg-panel p-1 shadow-xl shadow-black/50"
+      className="absolute z-20 flex animate-fade-in gap-0.5 rounded-lg border border-line bg-panel p-1 shadow-xl"
       style={{ left: at.x - 70, top: at.y }}
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -389,7 +403,7 @@ function SelectionPopup({ at, onPick }: { at: { x: number; y: number }; onPick: 
           title={label}
           aria-label={label}
           onClick={() => onPick(k)}
-          className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-fg hover:bg-white/10"
+          className="flex h-8 items-center gap-1 rounded-md px-2 text-sm text-fg hover:bg-hover"
         >
           <Icon size={14} />
           {label}

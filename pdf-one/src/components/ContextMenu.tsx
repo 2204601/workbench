@@ -55,7 +55,7 @@ export function ContextMenu() {
       ref={box}
       data-modal
       role="menu"
-      className="fixed z-50 min-w-52 animate-fade-in rounded-lg border border-line bg-panel py-1 shadow-2xl shadow-black/60"
+      className="fixed z-50 min-w-52 animate-fade-in rounded-lg border border-line bg-panel py-1 shadow-2xl"
       style={{ left: (pos ?? at).x, top: (pos ?? at).y }}
     >
       {items.map((id, i) => {
@@ -72,7 +72,7 @@ export function ContextMenu() {
               close();
               runCommand(id);
             }}
-            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg"
+            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg"
           >
             <span className="w-4">{Icon && <Icon size={14} />}</span>
             <span className="flex-1">{labelOf(c, s)}</span>

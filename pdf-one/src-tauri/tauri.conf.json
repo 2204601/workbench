@@ -16,10 +16,9 @@
         "title": "PDF One",
         "width": 1280,
         "height": 860,
-        "minWidth": 900,
+        "minWidth": 960,
         "minHeight": 600,
-        "theme": "Dark",
-        "backgroundColor": "#1b1c1f",
+        "backgroundColor": "#f3f4f6",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "trafficLightPosition": {

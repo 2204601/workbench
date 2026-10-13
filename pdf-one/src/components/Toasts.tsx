@@ -27,7 +27,7 @@ function useWindowActive() {
   return active;
 }
 
-const card = "pointer-events-auto overflow-hidden rounded-xl border bg-raised shadow-2xl shadow-black/50";
+const card = "pointer-events-auto overflow-hidden rounded-xl border bg-raised shadow-2xl";
 
 function ToastCard({ t, paused }: { t: Toast; paused: boolean }) {
   const dismiss = useStore((s) => s.dismissToast);
@@ -64,7 +64,7 @@ function ToastCard({ t, paused }: { t: Toast; paused: boolean }) {
             </button>
           )}
         </div>
-        <button onClick={() => dismiss(t.id)} className="shrink-0 rounded p-1 text-dim hover:bg-white/10 hover:text-fg">
+        <button onClick={() => dismiss(t.id)} className="shrink-0 rounded p-1 text-dim hover:bg-hover hover:text-fg">
           <X size={14} />
         </button>
       </div>

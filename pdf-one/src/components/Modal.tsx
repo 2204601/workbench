@@ -39,12 +39,12 @@ export function Modal({
         tabIndex={-1}
         role="dialog"
         aria-label={title}
-        className="max-h-[85vh] animate-zoom-in overflow-hidden rounded-xl border border-line bg-panel shadow-2xl shadow-black/60 outline-none"
+        className="max-h-[85vh] animate-zoom-in overflow-hidden rounded-xl border border-line bg-panel shadow-2xl outline-none"
         style={{ width }}
       >
         <div className="flex items-center border-b border-line px-4 py-3">
           <h2 className="flex-1 text-sm font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded p-1 text-dim hover:bg-white/10 hover:text-fg" aria-label="閉じる">
+          <button onClick={onClose} className="rounded p-1 text-dim hover:bg-hover hover:text-fg" aria-label="閉じる">
             <X size={16} />
           </button>
         </div>

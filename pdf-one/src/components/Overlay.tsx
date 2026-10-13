@@ -265,6 +265,11 @@ export const Overlay = memo(function Overlay({
     finishCreate(d);
   };
 
+  /** One placed: the pointer is 選択 again, unless 続けて置く is on. */
+  const backToSelect = () => {
+    if (!st().sticky) st().setTool("select");
+  };
+
   const finishCreate = (d: Extract<Drag, { kind: "create" }>) => {
     const inv = invert(matrix);
     const toPdf = (p: Point) => apply(inv, p);
@@ -296,7 +301,10 @@ export const Overlay = memo(function Overlay({
         const box: Rect = dragged
           ? normalize([d.start[0], d.start[1], d.cur[0], d.cur[1]])
           : [d.start[0] - 50 * px, d.start[1] - 30 * px, d.start[0] + 50 * px, d.start[1] + 30 * px];
-        add({ ...base, kind: d.tool, rect: rectToPdf(matrix, box) }, () => select(base.id));
+        add({ ...base, kind: d.tool, rect: rectToPdf(matrix, box) }, () => {
+          backToSelect();
+          select(base.id);
+        });
         return;
       }
       case "line":
@@ -304,7 +312,10 @@ export const Overlay = memo(function Overlay({
         const end: Point = dragged ? d.cur : [d.start[0] + 100 * px, d.start[1]];
         const [x1, y1] = toPdf(d.start);
         const [x2, y2] = toPdf(end);
-        add({ ...base, kind: d.tool, line: [x1, y1, x2, y2] }, () => select(base.id));
+        add({ ...base, kind: d.tool, line: [x1, y1, x2, y2] }, () => {
+          backToSelect();
+          select(base.id);
+        });
         return;
       }
       case "note": {
@@ -354,7 +365,7 @@ export const Overlay = memo(function Overlay({
           box = [d.start[0] - w / 2, d.start[1] - (w * ratio) / 2, d.start[0] + w / 2, d.start[1] + (w * ratio) / 2];
         }
         add({ ...base, kind: "image", image: img.id, rotation, rect: rectToPdf(matrix, box), width: 0 }, () => {
-          st().setTool("select");
+          backToSelect();
           select(base.id);
         });
         return;
@@ -644,8 +655,8 @@ export const Overlay = memo(function Overlay({
           y={y1}
           width={x2 - x1}
           height={y2 - y1}
-          fill={drag.tool === "rect" ? (style.fill ?? "none") : "rgba(76,141,255,.08)"}
-          stroke={drag.tool === "rect" ? style.color : "#4c8dff"}
+          fill={drag.tool === "rect" ? (style.fill ?? "none") : "color-mix(in srgb, var(--accent) 10%, transparent)"}
+          stroke={drag.tool === "rect" ? style.color : "var(--accent)"}
           strokeWidth={drag.tool === "rect" ? sw : 1}
           strokeDasharray={drag.tool === "rect" ? undefined : "4 3"}
         />
@@ -749,6 +760,7 @@ function TextBox({
     const d = activeDoc(st());
     const now = d && Object.values(d.annots).flat().find((x) => x.id === a.id);
     if (now && !now.text.trim()) st().amend((x) => removeAnnot(x, a.id));
+    if (st().tool === "text" && !st().sticky) st().setTool("select");
   }, [editing, a.id]);
 
   const text: React.CSSProperties = {
@@ -767,7 +779,7 @@ function TextBox({
       style={{
         ...style,
         background: a.fill ?? undefined,
-        border: a.width > 0 ? `${a.width * s}px solid ${a.color}` : editing ? "1px dashed #4c8dff" : undefined,
+        border: a.width > 0 ? `${a.width * s}px solid ${a.color}` : editing ? "1px dashed var(--accent)" : undefined,
         boxSizing: "border-box",
         overflow: "visible",
       }}

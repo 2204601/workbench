@@ -2,7 +2,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { findNext, runSearch } from "../lib/search";
 import { useStore } from "../store";
-import { SearchNav } from "./Toolbar";
+import { SearchNav } from "./Viewer";
 
 const st = () => useStore.getState();
 
@@ -29,7 +29,7 @@ export function SearchBar() {
   if (!search.open) return null;
   const n = search.results.length;
   return (
-    <div className="absolute top-3 right-5 z-20 flex animate-fade-in items-center gap-1 rounded-lg border border-line bg-panel py-1 pr-1 pl-2 shadow-xl shadow-black/50">
+    <div className="absolute top-3 right-5 z-20 flex animate-fade-in items-center gap-1 rounded-lg border border-line bg-panel py-1 pr-1 pl-2 shadow-xl">
       <Search size={14} className="text-dim" />
       <input
         ref={field}
@@ -46,13 +46,13 @@ export function SearchBar() {
             st().setSearch({ open: false });
           }
         }}
-        className="h-6 w-56 bg-transparent text-[13px] outline-none placeholder:text-dim"
+        className="h-6 w-56 bg-transparent text-sm outline-none placeholder:text-dim"
       />
       <span className="min-w-14 text-right text-xs text-dim tabular-nums">
         {search.progress && !n ? "検索中…" : search.query ? (n ? `${search.current + 1} / ${n}` : "なし") : ""}
       </span>
       <SearchNav onPrev={() => findNext(-1)} onNext={() => findNext(1)} />
-      <button onClick={() => st().setSearch({ open: false })} className="rounded p-1 hover:bg-white/10" aria-label="閉じる">
+      <button onClick={() => st().setSearch({ open: false })} className="rounded p-1 hover:bg-hover" aria-label="閉じる">
         <X size={14} />
       </button>
     </div>

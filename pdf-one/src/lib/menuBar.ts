@@ -141,6 +141,7 @@ async function build(): Promise<Menu> {
       cmd("view.fitPage"),
       sep(),
       cmd("view.panel"),
+      cmd("view.details"),
       cmd("view.organizer"),
       sep(),
       cmd("go.first"),

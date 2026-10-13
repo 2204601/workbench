@@ -50,16 +50,16 @@ export function Organizer({ d }: { d: Doc }) {
   };
 
   return (
-    <div data-organizer className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#2a2b30]">
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line bg-panel px-3">
-        <span className="mr-2 font-semibold">ページを整理</span>
-        <CommandButton id="page.rotateLeft" />
+    <div data-organizer className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+      <div className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-panel px-3">
+        <span className="mr-2 shrink-0 font-semibold">すべてのページ</span>
         <CommandButton id="page.rotateRight" />
-        <CommandButton id="page.delete" />
-        <div className="mx-1 h-5 w-px bg-line" />
-        <CommandButton id="page.insertBlank" label="白紙" />
-        <CommandButton id="page.insertFile" label="ファイルから挿入" />
-        <CommandButton id="page.extract" label="書き出す" />
+        <CommandButton id="page.rotateLeft" />
+        <CommandButton id="page.delete" label="削除" />
+        <div className="mx-1 h-5 w-px shrink-0 bg-line" />
+        <CommandButton id="page.insertBlank" />
+        <CommandButton id="page.insertFile" label="ファイルから足す" />
+        <CommandButton id="page.extract" label="抜き出す" />
         <CommandButton id="page.split" label="分割" />
         <div className="flex-1" />
         <span className="text-xs text-dim">
@@ -74,7 +74,7 @@ export function Organizer({ d }: { d: Doc }) {
           className="w-24 accent-accent"
           aria-label="サムネイルの大きさ"
         />
-        <button onClick={() => st().setOrganizer(false)} className="flex h-7 items-center gap-1 rounded-md bg-raised px-2 hover:bg-white/10">
+        <button onClick={() => st().setOrganizer(false)} className="flex h-8 shrink-0 items-center gap-1 rounded-md bg-raised px-2.5 hover:bg-hover">
           <X size={14} />
           閉じる
         </button>
@@ -115,7 +115,7 @@ export function Organizer({ d }: { d: Doc }) {
                 {before && <div className="absolute top-0 bottom-6 -left-3 w-1 rounded bg-accent" />}
                 {after && <div className="absolute top-0 bottom-6 -right-3 w-1 rounded bg-accent" />}
                 <div className="flex items-end justify-center" style={{ height: size * 1.42 }}>
-                  <div className={`rounded p-1 ${picked ? "bg-accent" : "hover:bg-white/15"}`}>
+                  <div className={`rounded p-1 ${picked ? "bg-accent" : "hover:bg-line"}`}>
                     <Thumb item={p} width={size - 8} height={size * 1.42 - 8} />
                   </div>
                 </div>

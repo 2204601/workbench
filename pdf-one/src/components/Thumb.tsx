@@ -41,7 +41,7 @@ export const Thumb = memo(function Thumb({ item, width, height }: { item: PageIt
   }, [item.source, item.index, rotation, w]);
 
   return (
-    <div ref={el} className="relative bg-white shadow shadow-black/40" style={{ width: w, height: h }}>
+    <div ref={el} className="relative bg-white shadow" style={{ width: w, height: h }}>
       {url && <img src={url} alt="" draggable={false} className="block h-full w-full select-none" />}
     </div>
   );
