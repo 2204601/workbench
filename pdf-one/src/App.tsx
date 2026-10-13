@@ -12,10 +12,12 @@ import { SearchBar } from "./components/SearchBar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Sidebar } from "./components/Sidebar";
+import { SignatureDialog } from "./components/SignatureDialog";
 import { StampDialog } from "./components/StampDialog";
 import { StartScreen } from "./components/StartScreen";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
+import { Tips } from "./components/Tips";
 import { Toasts } from "./components/Toasts";
 import { Viewer } from "./components/Viewer";
 import { openRequested, settleAll } from "./lib/actions";
@@ -119,6 +121,7 @@ export default function App() {
             <div className="relative flex min-w-0 flex-1">
               {organizer ? <Organizer d={d} /> : <Viewer key={d.key} d={d} />}
               {!organizer && <SearchBar />}
+              {!organizer && <Tips />}
             </div>
             {details && !organizer && <DetailsPanel d={d} />}
           </div>
@@ -132,6 +135,7 @@ export default function App() {
       {dialog === "shortcuts" && <ShortcutHelp />}
       {dialog === "stamps" && <StampDialog />}
       {dialog === "split" && <SplitDialog />}
+      {dialog === "signature" && <SignatureDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />

@@ -21,22 +21,25 @@ export interface PageGeom {
   height: number;
 }
 
-/** A page's box and rotation (a blank page is just its size). */
-export function pageBox(p: PageItem): { view: Rect; rotation: number } {
+/**
+ * A page's box and rotation (a blank page is just its size). `turn` is the
+ * tab's 回転して見る, added on screen only.
+ */
+export function pageBox(p: PageItem, turn = 0): { view: Rect; rotation: number } {
   if (p.source === null) {
     const [w, h] = p.size ?? [595.276, 841.89];
-    return { view: [0, 0, w, h], rotation: shownRotation(0, p.rotate) };
+    return { view: [0, 0, w, h], rotation: shownRotation(0, p.rotate + turn) };
   }
   const info = getSource(p.source)?.pages[p.index];
-  if (!info) return { view: [0, 0, 595.276, 841.89], rotation: 0 };
-  return { view: info.view, rotation: shownRotation(info.rotate, p.rotate) };
+  if (!info) return { view: [0, 0, 595.276, 841.89], rotation: shownRotation(0, turn) };
+  return { view: info.view, rotation: shownRotation(info.rotate, p.rotate + turn) };
 }
 
-/** Pages one under the other, centred, at `scale` (1 = 100%). */
-export function layout(pages: PageItem[], scale: number, viewportWidth: number) {
+/** Pages one under the other, centred, at `scale` (1 = 100%), turned `turn` to look at. */
+export function layout(pages: PageItem[], scale: number, viewportWidth: number, turn = 0) {
   const px = scale * CSS_PER_PT;
   const sized = pages.map((p) => {
-    const { view, rotation } = pageBox(p);
+    const { view, rotation } = pageBox(p, turn);
     const [width, height] = viewSize(view, px, rotation);
     return { p, view, rotation, width, height };
   });
@@ -58,11 +61,11 @@ export function layout(pages: PageItem[], scale: number, viewportWidth: number) 
  * into view would change the zoom between pages of different sizes (Letter
  * and A4, a landscape page, a scan a little off size) and make the view jump.
  */
-export function fitScale(zoom: Zoom, pages: PageItem[], base: number, width: number, height: number): number {
+export function fitScale(zoom: Zoom, pages: PageItem[], base: number, width: number, height: number, turn = 0): number {
   if (zoom.mode === "scale") return zoom.value;
   if (!pages.length || width <= 0) return 1;
   const p = pages[Math.min(base, pages.length - 1)];
-  const { view, rotation } = pageBox(p);
+  const { view, rotation } = pageBox(p, turn);
   const [w, h] = viewSize(view, CSS_PER_PT, rotation);
   const byWidth = (width - 2 * GAP - 12) / w;
   const s = zoom.mode === "fit-width" ? byWidth : Math.min(byWidth, (height - 2 * GAP) / h);

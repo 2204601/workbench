@@ -33,7 +33,7 @@ export interface Updating {
   installing?: boolean;
 }
 
-export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | null;
+export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | null;
 
 /** What a click or a drag on a page does. */
 export type Tool =
@@ -49,7 +49,16 @@ export type Tool =
   | "ellipse"
   | "line"
   | "arrow"
-  | "image";
+  | "image"
+  // 入力と署名 (docs/UX.md §5): typing into a form that has no fields, the
+  // marks people make on paper, today's date. `eraser` takes pen strokes away.
+  | "fill"
+  | "check"
+  | "cross"
+  | "dot"
+  | "dash"
+  | "date"
+  | "eraser";
 
 /** The look new annotations of a tool get (and the selected one shows). */
 export interface ToolStyle {
@@ -118,6 +127,8 @@ export interface Doc {
   selectedAnnot: string | null;
   /** Picked pages in the sidebar and the page organizer. */
   selectedPages: string[];
+  /** 回転して見る: added to every page on screen only (0, 90, 180, 270). The file isn't changed. */
+  viewRotate: number;
   /** Asks the viewer to bring a page into view (`seq` makes each ask new). */
   scrollTo: { page: number; seq: number; y?: number } | null;
 }
@@ -239,6 +250,13 @@ export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   line: PEN,
   arrow: PEN,
   image: { ...PEN },
+  fill: { color: "#111111", width: 0, opacity: 1, fill: null, fontSize: 11 },
+  check: { ...PEN, color: "#111111", width: 1.5 },
+  cross: { ...PEN, color: "#111111", width: 1.5 },
+  dot: { ...PEN, color: "#111111", width: 0 },
+  dash: { ...PEN, color: "#111111", width: 1.5 },
+  date: { color: "#111111", width: 0, opacity: 1, fill: null, fontSize: 11 },
+  eraser: PEN,
 };
 
 function savedStyles(): Record<Tool, ToolStyle> {

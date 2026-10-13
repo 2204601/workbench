@@ -10,6 +10,8 @@ export interface AppSettings {
   author: string;
   /** Newest first. */
   recent: string[];
+  /** First-run tips already shown (src/components/Tips.tsx). */
+  seenTips: string[];
 }
 
 export type AnnotKind =
@@ -143,6 +145,8 @@ export const api = {
   imageBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("image_bytes", { id })),
   listStamps: () => invoke<Stamp[]>("list_stamps"),
   addStamp: (path: string) => invoke<Stamp>("add_stamp", { path }),
+  /** A picture drawn in the app (a signature), as PNG bytes, into the library. */
+  addStampBytes: (data: Uint8Array) => invoke<Stamp>("add_stamp_bytes", data),
   removeStamp: (id: string) => invoke<void>("remove_stamp", { id }),
   useStamp: (id: string) => invoke<ImageInfo>("use_stamp", { id }),
 };

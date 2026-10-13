@@ -85,15 +85,15 @@ export function Viewer({ d }: { d: Doc }) {
   const { scale, fitPage } = useMemo(() => {
     if (!size.w) return { scale: d.scale, fitPage: d.fitPage };
     const base = Math.min(sized.current ? page.current : d.fitPage, d.pages.length - 1);
-    return { scale: fitScale(d.zoom, d.pages, base, size.w, size.h), fitPage: base };
+    return { scale: fitScale(d.zoom, d.pages, base, size.w, size.h, d.viewRotate), fitPage: base };
     // Not d.page: scrolling to another page doesn't refit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d.zoom, d.pages, size.w, size.h]);
+  }, [d.zoom, d.pages, size.w, size.h, d.viewRotate]);
   useEffect(() => {
     if (Math.abs(scale - d.scale) > 1e-4 || fitPage !== d.fitPage) st().patchDoc({ scale, fitPage }, d.key);
   }, [scale, fitPage, d.scale, d.fitPage, d.key]);
 
-  const lay = useMemo(() => layout(d.pages, scale, size.w), [d.pages, scale, size.w]);
+  const lay = useMemo(() => layout(d.pages, scale, size.w, d.viewRotate), [d.pages, scale, size.w, d.viewRotate]);
 
   // Keep the same place in view when the zoom changes: the point under the
   // pointer (wheel) or the middle of the view.

@@ -70,6 +70,7 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
         image_bytes,
         list_stamps,
         add_stamp,
+        add_stamp_bytes,
         remove_stamp,
         use_stamp,
     ])

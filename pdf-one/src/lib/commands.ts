@@ -10,10 +10,14 @@
  */
 import {
   ArrowRight,
+  CalendarDays,
+  Check,
   Circle,
+  CircleDot,
   Columns2,
   Copy,
   Download,
+  Eraser,
   FileInput,
   FilePlus2,
   FolderOpen,
@@ -32,10 +36,12 @@ import {
   RotateCw,
   Save,
   Search,
+  Signature,
   Square,
   Stamp,
   StickyNote,
   Strikethrough,
+  TextCursorInput,
   Trash2,
   Type,
   Underline,
@@ -105,7 +111,7 @@ const nudge = (s: S, dx: number, dy: number) => {
   const page = d.pages.find((p) => p.uid === uid);
   if (!page) return;
   // Screen directions to PDF space, for the page's rotation.
-  const { view, rotation } = pageBox(page);
+  const { view, rotation } = pageBox(page, d.viewRotate);
   const inv = invert(viewportTransform(view, 1, rotation));
   const px = inv[0] * dx + inv[2] * dy;
   const py = inv[1] * dx + inv[3] * dy;
@@ -122,7 +128,7 @@ const duplicate = (s: S) => {
   s.patchDoc({ selectedAnnot: a.id });
 };
 
-export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key: string; words?: string[] }[] = [
+export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key?: string; words?: string[] }[] = [
   { tool: "select", title: "選択", icon: MousePointer2, key: "V", words: ["選ぶ", "矢印", "カーソル"] },
   { tool: "hand", title: "手のひら", icon: Hand, key: "H", words: ["スクロール", "動かす", "つかむ"] },
   { tool: "highlight", title: "マーカー", icon: Highlighter, key: "M", words: ["ハイライト", "蛍光ペン", "黄色", "強調"] },
@@ -135,6 +141,14 @@ export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key: string; 
   { tool: "ellipse", title: "丸", icon: Circle, key: "O", words: ["楕円", "円", "囲む"] },
   { tool: "line", title: "線", icon: Minus, key: "L", words: ["直線"] },
   { tool: "arrow", title: "矢印", icon: ArrowRight, key: "A", words: ["やじるし"] },
+  { tool: "eraser", title: "消しゴム", icon: Eraser, key: "E", words: ["消す", "ペンを消す", "手書きを消す", "イレーザー"] },
+  // 入力と署名
+  { tool: "fill", title: "記入", icon: TextCursorInput, words: ["入力", "書き込む", "フォーム", "申込書", "文字を入れる", "記入する"] },
+  { tool: "check", title: "チェック", icon: Check, words: ["レ点", "✓", "チェックマーク", "はい"] },
+  { tool: "cross", title: "バツ", icon: X, words: ["✗", "×", "いいえ", "取り消し"] },
+  { tool: "dot", title: "黒丸", icon: CircleDot, words: ["●", "丸", "選択肢", "塗りつぶし"] },
+  { tool: "dash", title: "横線", icon: Minus, words: ["─", "線を引く", "下線", "空欄"] },
+  { tool: "date", title: "日付", icon: CalendarDays, words: ["今日", "年月日", "日にち"] },
 ];
 
 export const COMMANDS: Command[] = [
@@ -317,7 +331,7 @@ export const COMMANDS: Command[] = [
       id: `tool.${tool}`,
       title,
       icon,
-      keys: [key],
+      keys: key ? [key] : undefined,
       words,
       enabled: (s) => hasDoc(s) && (tool === "select" || tool === "hand" || editable(s)),
       checked: (s) => s.tool === tool,
@@ -335,6 +349,30 @@ export const COMMANDS: Command[] = [
     run: (s) => s.openDialog("stamps"),
   },
   { id: "tool.imageFile", title: "画像ファイルを置く…", icon: ImagePlus, words: ["写真", "PNG", "JPEG", "画像を入れる"], enabled: editable, run: () => void chooseImage() },
+  {
+    id: "sign.draw",
+    title: "手書きの署名を作る…",
+    icon: Signature,
+    words: ["サイン", "署名", "自筆", "手書き", "名前を書く"],
+    enabled: editable,
+    run: (s) => s.openDialog("signature"),
+  },
+  {
+    id: "view.rotateRight",
+    title: "右に回転して見る",
+    icon: RotateCw,
+    words: ["表示を回転", "向きを変える", "横向きで見る", "回して見る"],
+    enabled: hasDoc,
+    run: (s) => s.patchDoc((d) => ({ viewRotate: (d.viewRotate + 90) % 360 })),
+  },
+  {
+    id: "view.rotateLeft",
+    title: "左に回転して見る",
+    icon: RotateCcw,
+    words: ["表示を回転", "向きを変える", "回して見る"],
+    enabled: hasDoc,
+    run: (s) => s.patchDoc((d) => ({ viewRotate: (d.viewRotate + 270) % 360 })),
+  },
 
   { id: "app.settings", title: "設定…", keys: ["Mod+,"], words: ["名前", "作成者", "文字の大きさ", "大きく", "アップデート"], run: (s) => s.openDialog("settings") },
   { id: "app.checkUpdate", title: "アップデートを確認…", words: ["更新", "新しいバージョン"], run: () => void checkForUpdate(true) },

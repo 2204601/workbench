@@ -4,7 +4,7 @@
  * table (commands.ts); a menu button gathers a few of them. Tabs for work
  * that isn't built yet aren't listed (no greyed-out promises).
  */
-import { Shapes, Stamp, type LucideIcon } from "lucide-react";
+import { Shapes, Signature, Stamp, type LucideIcon } from "lucide-react";
 
 /** A button for one command, or a menu of several. */
 export type RibbonItem = string | RibbonMenu;
@@ -25,6 +25,7 @@ export interface RibbonTab {
 
 const SHAPES: RibbonMenu = { id: "shapes", title: "図形", icon: Shapes, items: ["tool.rect", "tool.ellipse", "tool.line", "tool.arrow"] };
 const STAMPS: RibbonMenu = { id: "stamps", title: "印鑑・画像", icon: Stamp, items: ["tool.image", "tool.imageFile"] };
+const SIGN: RibbonMenu = { id: "sign", title: "署名", icon: Signature, items: ["sign.draw", "tool.image", "tool.imageFile"] };
 
 export const RIBBON: RibbonTab[] = [
   {
@@ -37,7 +38,7 @@ export const RIBBON: RibbonTab[] = [
     label: "書き込み",
     groups: [
       ["tool.select", "tool.highlight", "tool.underline", "tool.strikeout"],
-      ["tool.text", "tool.note", "tool.ink"],
+      ["tool.text", "tool.note", "tool.ink", "tool.eraser"],
       [SHAPES, STAMPS],
     ],
   },
@@ -50,6 +51,11 @@ export const RIBBON: RibbonTab[] = [
       ["page.insertBlank", "page.insertFile"],
       ["page.extract", "page.split"],
     ],
+  },
+  {
+    id: "fill",
+    label: "入力と署名",
+    groups: [["tool.select", "tool.fill"], ["tool.check", "tool.cross", "tool.dot", "tool.dash", "tool.date"], [SIGN]],
   },
 ];
 

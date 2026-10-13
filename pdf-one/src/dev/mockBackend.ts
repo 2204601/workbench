@@ -5,9 +5,11 @@
 // both in the same PR. Every file "opened" is the same made-up sample (a
 // few pages of text, a link and a small form); saving only logs.
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AppSettings, ImageInfo, OpenedPdf, PageSpec } from "../lib/api";
+import type { AppSettings, ImageInfo, OpenedPdf, PageSpec, Stamp } from "../lib/api";
 
-let settings: AppSettings = { autoUpdate: true, author: "", recent: ["/Users/sample/Documents/見積書_2025.pdf"] };
+let settings: AppSettings = { autoUpdate: true, author: "", recent: ["/Users/sample/Documents/見積書_2025.pdf"], seenTips: [] };
+/** The stamp library, for this run only. */
+const stamps = new Map<string, Stamp & { img: ImageInfo }>();
 let nextId = 1;
 const views = new Map<number, Uint8Array>();
 const images = new Map<number, { bytes: Uint8Array; width: number; height: number }>();
@@ -148,11 +150,23 @@ export function installMockBackend() {
         return Array.from(img.bytes);
       }
       case "list_stamps":
-        return [];
+        return [...stamps.values()].map(({ id, name }) => ({ id, name }));
       case "add_stamp":
+        throw "ブラウザ版ではファイルを読めません";
+      case "add_stamp_bytes": {
+        const img = await imageInfo(args as unknown as Uint8Array);
+        const id = `${String(stamps.size + 1).padStart(4, "0")}_署名.png`;
+        stamps.set(id, { id, name: "署名", img });
+        return { id, name: "署名" };
+      }
       case "remove_stamp":
-      case "use_stamp":
-        throw "ブラウザ版ではスタンプを使えません";
+        stamps.delete(String(a.id));
+        return null;
+      case "use_stamp": {
+        const s = stamps.get(String(a.id));
+        if (!s) throw "スタンプが見つかりません";
+        return s.img;
+      }
       case "reveal_log":
       case "reveal_backups":
       case "reveal_file":

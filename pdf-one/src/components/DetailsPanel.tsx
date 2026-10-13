@@ -45,10 +45,16 @@ const TOOL_KIND: Partial<Record<Tool, AnnotKind>> = {
   line: "line",
   arrow: "arrow",
   image: "image",
+  fill: "text",
+  date: "text",
+  check: "ink",
+  cross: "ink",
+  dot: "ellipse",
+  dash: "line",
 };
 
 /** Tools that go back to 選択 after one use, unless 続けて置く is on (UX §6). */
-const ONE_SHOT: Tool[] = ["text", "rect", "ellipse", "line", "arrow", "image"];
+const ONE_SHOT: Tool[] = ["text", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date"];
 
 /**
  * 詳細 (docs/UX.md §7), on the right: the selected annotation's look and
@@ -67,6 +73,13 @@ export function DetailsPanel({ d }: { d: Doc }) {
   } else if (sel) {
     title = `選んだもの：${KIND_LABEL[sel.annot.kind]}`;
     body = <AnnotControls sel={sel} tool={tool} />;
+  } else if (tool === "eraser") {
+    title = "消しゴム";
+    body = (
+      <p className="rounded-md bg-raised p-2.5 text-xs leading-relaxed text-dim">
+        ペンで書いた線の上をなぞると、その線が消えます。マーカーや文字は、クリックで選んで Delete で消します。
+      </p>
+    );
   } else if (toolKind) {
     title = `これから置くもの：${KIND_LABEL[toolKind]}`;
     body = <AnnotControls sel={null} tool={tool} />;
@@ -104,7 +117,9 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
   const sticky = useStore((s) => s.sticky);
   const sliding = useRef(false);
   const kind: AnnotKind = sel?.annot.kind ?? TOOL_KIND[tool]!;
-  const c = CONTROLS[kind];
+  // The marks and the date are placed as they are; only their colour varies.
+  const simple = !sel && (tool === "check" || tool === "cross" || tool === "dot" || tool === "dash");
+  const c = simple ? { marker: false } : CONTROLS[kind];
   const cur: ToolStyle = sel
     ? { color: sel.annot.color, width: sel.annot.width, opacity: sel.annot.opacity, fill: sel.annot.fill, fontSize: sel.annot.fontSize }
     : styles[tool];

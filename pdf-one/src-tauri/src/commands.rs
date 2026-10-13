@@ -336,6 +336,17 @@ pub fn add_stamp<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<files
     files::add_stamp(&data_dir(&app, "stamps")?, &name, &img.bytes, img.mime)
 }
 
+/// A picture drawn in the app (a signature), sent as PNG bytes, into the library.
+#[tauri::command]
+pub fn add_stamp_bytes<R: Runtime>(app: AppHandle<R>, request: Request<'_>) -> CmdResult<files::Stamp> {
+    let bytes = match request.body() {
+        InvokeBody::Raw(bytes) => bytes.clone(),
+        InvokeBody::Json(_) => return Err("画像のデータがありません".into()),
+    };
+    let img = read_image(bytes)?;
+    files::add_stamp(&data_dir(&app, "stamps")?, "署名", &img.bytes, img.mime)
+}
+
 #[tauri::command]
 pub fn remove_stamp<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<()> {
     let p = files::stamp_path(&data_dir(&app, "stamps")?, &id)?;
