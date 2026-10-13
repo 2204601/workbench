@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Clip — スニペットと設定</title>
+    <script type="module" src="/src/manage.ts" defer></script>
+  </head>
+  <body class="manage">
+    <nav class="tabs">
+      <button class="tab" data-tab="snippets">スニペット</button>
+      <button class="tab" data-tab="settings">設定</button>
+      <span id="open-hint" class="open-hint"></span>
+    </nav>
+
+    <section id="tab-snippets" class="snippets-tab">
+      <aside class="snippet-side">
+        <ul id="snippet-list" class="snippet-list"></ul>
+        <div class="side-actions">
+          <button id="add" class="button">＋ 追加</button>
+          <span class="spacer"></span>
+          <button id="up" class="icon-btn" title="上へ">
+            <svg viewBox="0 0 16 16"><path d="M8 12.5v-9M4 7.5l4-4 4 4" /></svg>
+          </button>
+          <button id="down" class="icon-btn" title="下へ">
+            <svg viewBox="0 0 16 16"><path d="M8 3.5v9M4 8.5l4 4 4-4" /></svg>
+          </button>
+        </div>
+      </aside>
+
+      <div class="editor">
+        <div class="presets">
+          <span class="presets-title">よく使う項目を追加</span>
+          <div id="presets" class="chips"></div>
+        </div>
+
+        <form id="editor-form" class="editor-form" hidden>
+          <label class="field">
+            <span>名前</span>
+            <input id="label" type="text" placeholder="例：会社のメールアドレス" autocomplete="off" />
+          </label>
+          <label class="field grow">
+            <span>入力する内容</span>
+            <textarea id="text" placeholder="この内容がそのまま入力されます。改行も入ります" spellcheck="false"></textarea>
+          </label>
+          <div class="editor-actions">
+            <span id="saved" class="muted"></span>
+            <span class="spacer"></span>
+            <button id="delete" type="button" class="button danger">削除</button>
+          </div>
+        </form>
+
+        <div id="editor-empty" class="editor-empty">
+          <p>メールアドレスや電話番号、住所、署名などを登録しておくと、<span class="shortcut-text"></span> で呼び出してすぐ入力できます。</p>
+          <p>上の「よく使う項目」か、左下の「＋ 追加」から登録してください。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="settings-tab" hidden>
+      <div class="setting">
+        <label for="shortcut">呼び出すショートカット</label>
+        <select id="shortcut"></select>
+        <p id="shortcut-warning" class="warning" hidden></p>
+      </div>
+
+      <div class="setting">
+        <label class="check"><input id="record" type="checkbox" /> コピーの履歴を記録する</label>
+        <p class="muted">パスワード管理ソフトなど、記録しないよう印を付けてコピーしたものは記録しません。テキストだけを記録します。</p>
+      </div>
+
+      <div class="setting row-setting">
+        <label for="limit">残す件数</label>
+        <select id="limit"></select>
+        <label for="days">残す期間</label>
+        <select id="days"></select>
+      </div>
+
+      <div class="setting">
+        <button id="clear-history" class="button">履歴を消去…</button>
+      </div>
+
+      <div id="accessibility" class="setting" hidden>
+        <label>自動で入力</label>
+        <p id="accessibility-status" class="muted"></p>
+        <button id="allow" class="button">許可する…</button>
+      </div>
+
+      <p id="settings-error" class="warning" hidden></p>
+      <p id="version" class="version muted"></p>
+    </section>
+  </body>
+</html>
