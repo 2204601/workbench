@@ -353,7 +353,7 @@ pub fn plan(
                     Fit::Cover => format!("scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"),
                 };
                 g.push(format!(
-                    "[{input}:v]setpts=PTS-STARTPTS,fps={fps},{fit},setsar=1,format=yuv420p,tpad=stop_mode=clone:stop_duration={pad},trim=end_frame={n},setpts=PTS-STARTPTS,settb=1/{fps}[v{i}]",
+                    "[{input}:v]setpts=PTS-STARTPTS,fps={fps},{fit},setsar=1,format=yuv420p,tpad=stop_mode=clone:stop_duration={pad},trim=end_frame={n},setpts=PTS-STARTPTS,fps={fps}[v{i}]",
                     fps = job.fps,
                     pad = num(len + 1.0),
                 ));
@@ -372,7 +372,7 @@ pub fn plan(
                     png.to_string_lossy().into_owned(),
                 ]);
                 g.push(format!(
-                    "[{input}:v]scale={w}:{h},setsar=1,format=yuv420p,trim=end_frame={n},setpts=PTS-STARTPTS,settb=1/{}[v{i}]",
+                    "[{input}:v]scale={w}:{h},setsar=1,format=yuv420p,trim=end_frame={n},setpts=PTS-STARTPTS,fps={}[v{i}]",
                     job.fps
                 ));
                 None
@@ -408,11 +408,12 @@ pub fn plan(
             g.push(format!("[{a}][a{i}]acrossfade=d={}[xa{i}]", num(secs(d))));
             acc += fr.clips[i] - d;
         } else {
-            // concat answers in microseconds; xfade wants both sides in frames.
+            // concat answers in microseconds with no frame rate; xfade wants
+            // both sides in frames, at a stated rate (ffmpeg 7 refuses otherwise).
             g.push(format!(
                 "[{v}][{a}][v{i}][a{i}]concat=n=2:v=1:a=1[cv{i}][xa{i}]"
             ));
-            g.push(format!("[cv{i}]settb=1/{}[xv{i}]", job.fps));
+            g.push(format!("[cv{i}]fps={}[xv{i}]", job.fps));
             acc += fr.clips[i];
         }
         v = format!("xv{i}");
@@ -618,7 +619,7 @@ mod tests {
         assert!(p.graph.contains("[a0][a1]acrossfade=d=0.5[xa1]"));
         assert!(p
             .graph
-            .contains("[xv1][xa1][v2][a2]concat=n=2:v=1:a=1[cv2][xa2];\n[cv2]settb=1/30[xv2]"));
+            .contains("[xv1][xa1][v2][a2]concat=n=2:v=1:a=1[cv2][xa2];\n[cv2]fps=30[xv2]"));
         assert!(p
             .graph
             .ends_with("[xv2]format=yuv420p[vout];\n[xa2]anull[aout]"));

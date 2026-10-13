@@ -68,7 +68,7 @@ iPhone の HEVC（Windows）、AVCHD（.mts）、ProRes、10bit の H.264 など
 
 ## ffmpeg について
 
-読み込み、サムネイル、プレビュー用のコピー、書き出しは、アプリに同梱した [ffmpeg](https://ffmpeg.org/) 6.1.1（[ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) の配布物）で行う。この ffmpeg は libx264 を含む **GPL** の build で、アプリとは別の実行ファイルとして同梱している。ffmpeg のライセンスとソースは ffmpeg-static のリリース（`b6.1.1`）にある。
+読み込み、サムネイル、プレビュー用のコピー、書き出しは、アプリに同梱した [ffmpeg](https://ffmpeg.org/)（[ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) のリリース `b6.1.1` の配布物）で行う。中の ffmpeg の版は OS ごとに違う（Windows 6.1.1、macOS 6.0。開発用の Linux 版は 7.0.2）。この ffmpeg は libx264 を含む **GPL** の build で、アプリとは別の実行ファイルとして同梱している。ffmpeg のライセンスとソースの入手先は ffmpeg-static のそのリリース（`win32-x64.README` など）にある。
 
 ## ログ
 

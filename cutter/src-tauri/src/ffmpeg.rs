@@ -364,14 +364,25 @@ pub fn run(
         return Ok(());
     }
     let text = errors.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let tail: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-    let tail = tail[tail.len().saturating_sub(6)..].join("\n");
+    let tail = summary(&text);
     log::warn!("ffmpeg failed ({status}): {args:?}\n{text}");
     Err(RunError::Failed(if tail.is_empty() {
         format!("ffmpeg が失敗しました（{status}）")
     } else {
         tail
     }))
+}
+
+/// What to show of ffmpeg's errors: the first lines (where it went wrong;
+/// the rest is usually the encoders giving up after it) and the last ones.
+fn summary(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.len() <= 8 {
+        return lines.join("\n");
+    }
+    [&lines[..4], &["…"], &lines[lines.len() - 3..]]
+        .concat()
+        .join("\n")
 }
 
 #[cfg(test)]

@@ -5,10 +5,13 @@
 //   npm run ffmpeg -- aarch64-apple-darwin
 //   FFMPEG_BIN=/usr/bin/ffmpeg npm run ffmpeg   # copy one you already have
 //
-// The builds are ffmpeg-static's (https://github.com/eugeneware/ffmpeg-static),
-// one ffmpeg version for every OS. They are GPL builds (libx264 inside), see
-// README「ffmpeg について」. Pinned by release tag and by the SHA-256 of each
-// download, so a build never picks up a different binary unnoticed.
+// The builds are ffmpeg-static's (https://github.com/eugeneware/ffmpeg-static).
+// Its release tag is not the ffmpeg version of every file in it (below), so
+// the version is printed after the download. CI exports with the Linux and
+// the Windows build; the filters used are all in ffmpeg 6.0.
+// They are GPL builds (libx264 inside), see README「ffmpeg について」. Pinned
+// by release tag and by the SHA-256 of each download, so a build never picks
+// up a different binary unnoticed.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -21,9 +24,12 @@ const BASE = `https://github.com/eugeneware/ffmpeg-static/releases/download/${RE
 
 /** Target triple → the release's file name, and the SHA-256 of that .gz. */
 const BUILDS = {
-  "aarch64-apple-darwin": { file: "ffmpeg-darwin-arm64.gz", sha256: "" },
-  "x86_64-pc-windows-msvc": { file: "ffmpeg-win32-x64.gz", sha256: "" },
-  "x86_64-unknown-linux-gnu": { file: "ffmpeg-linux-x64.gz", sha256: "" },
+  // ffmpeg 6.0
+  "aarch64-apple-darwin": { file: "ffmpeg-darwin-arm64.gz", sha256: "8923876afa8db5585022d7860ec7e589af192f441c56793971276d450ed3bbfa" },
+  // ffmpeg 6.1.1 (www.gyan.dev essentials build)
+  "x86_64-pc-windows-msvc": { file: "ffmpeg-win32-x64.gz", sha256: "8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77" },
+  // ffmpeg 7.0.2 (johnvansickle.com): development and CI only
+  "x86_64-unknown-linux-gnu": { file: "ffmpeg-linux-x64.gz", sha256: "bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa" },
 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,3 +87,9 @@ writeFileSync(dest, gunzipSync(gz));
 chmodSync(dest, 0o755);
 writeFileSync(stamp, hash);
 console.log(`ffmpeg: → ${dest}`);
+// The version, when it runs here (not a macOS build fetched on Windows).
+try {
+  console.log(`ffmpeg: ${execFileSync(dest, ["-version"], { encoding: "utf8" }).split("\n")[0]}`);
+} catch {
+  /* another OS's build */
+}
