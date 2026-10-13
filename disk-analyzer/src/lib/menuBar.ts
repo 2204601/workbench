@@ -108,7 +108,14 @@ async function build(): Promise<Menu> {
       sep(),
       cmd("item.copyPath"),
     ]),
-    submenu("表示", [cmd("chart.sunburst"), cmd("chart.treemap"), cmd("chart.icicle")]),
+    submenu("表示", [
+      cmd("chart.sunburst"),
+      cmd("chart.treemap"),
+      cmd("chart.icicle"),
+      sep(),
+      cmd("chart.pie"),
+      cmd("chart.bar"),
+    ]),
     submenu("移動", [cmd("go.up"), cmd("go.top"), sep(), cmd("list.open"), cmd("item.reveal")]),
     ...(isMac
       ? [

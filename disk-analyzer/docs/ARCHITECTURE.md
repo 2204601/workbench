@@ -15,7 +15,7 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
 |---|---|
 | shell | proxy、updater、log の配線、single-instance、window-state、settings.json（Renamer から写した。desktop-base ができたら差し替える） |
 | core | スキャン（`scan.rs`）、グラフと一覧に渡す形（`view.rs`）、ドライブの一覧と空き容量（`places.rs`） |
-| features | グラフ 3 種（`src/components/charts/`）、一覧、スタート画面、スキャン中の画面 |
+| features | グラフ 5 種（`src/components/charts/`）、一覧、スタート画面、スキャン中の画面 |
 
 ## 3. ディレクトリ
 
@@ -27,10 +27,10 @@ disk-analyzer/
     lib/api.ts                 Rust コマンドの型付きラッパ
     lib/commands.ts            コマンド表（メニュー、キー、ショートカット一覧の元）
     lib/actions.ts             スキャン、移動、表示、パスのコピー
-    lib/charts.ts              グラフ 3 種の深さとまとめる割合、色の割り当て
+    lib/charts.ts              グラフ 5 種の深さとまとめる割合、色の割り当て
     lib/contextMenu.ts         右クリックのメニュー（ネイティブ）
     components/charts/
-      layouts.ts               サンバースト・ツリーマップ・アイシクルのレイアウト（d3-hierarchy、d3-shape）
+      layouts.ts               サンバースト・ツリーマップ・アイシクル・円グラフ・棒グラフのレイアウト（d3-hierarchy、d3-shape）
       shapes.ts                レイアウトの結果の型、色、文字の切り詰め
       ChartArea.tsx            描画、ツールチップ、重ねたときの枠、クリック
     components/                一覧、ツールバー、ステータスバー、スタート画面、スキャン中、トースト

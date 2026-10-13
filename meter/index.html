@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Meter</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <h1>Meter</h1>
+        <p id="host" class="dim"></p>
+      </div>
+      <button id="close" class="icon-btn" title="閉じる（Esc）" aria-label="閉じる">
+        <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+      </button>
+    </header>
+
+    <main>
+      <section class="card" id="cpu">
+        <div class="head">
+          <h2>CPU</h2>
+          <span class="value" data-value></span>
+        </div>
+        <p class="sub" data-sub></p>
+        <div class="chart" data-chart></div>
+        <div class="cores" data-cores aria-label="コアごとの使用率"></div>
+      </section>
+
+      <section class="card" id="memory">
+        <div class="head">
+          <h2>メモリ</h2>
+          <span class="value" data-value></span>
+        </div>
+        <p class="sub" data-sub></p>
+        <div class="chart" data-chart></div>
+      </section>
+
+      <section class="card" id="disk">
+        <div class="head">
+          <h2>ディスク</h2>
+          <span class="legend" data-legend></span>
+        </div>
+        <div class="chart" data-chart></div>
+        <ul class="drives" data-drives></ul>
+      </section>
+
+      <section class="card" id="network">
+        <div class="head">
+          <h2>ネットワーク</h2>
+          <span class="legend" data-legend></span>
+        </div>
+        <div class="chart" data-chart></div>
+      </section>
+
+      <section class="card" id="apps">
+        <div class="head">
+          <h2>よく使っているアプリ</h2>
+          <div class="tabs" role="tablist">
+            <button role="tab" data-sort="cpu" aria-selected="true">CPU</button>
+            <button role="tab" data-sort="memory" aria-selected="false">メモリ</button>
+          </div>
+        </div>
+        <ol class="apps" data-apps></ol>
+      </section>
+    </main>
+
+    <footer class="foot dim" id="foot"></footer>
+  </body>
+</html>

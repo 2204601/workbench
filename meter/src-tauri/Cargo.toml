@@ -1,0 +1,49 @@
+[package]
+name = "meter"
+version = "0.1.0"
+description = "CPU, memory, disk and network at a glance, from the tray"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix avoids a name clash with the bin target on Windows.
+name = "meter_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# CPU, memory, disks, networks and processes (sampler.rs).
+sysinfo = { version = "0.39", default-features = false, features = ["system", "disk", "network"] }
+# Log file (Architecture §8): log::* from Rust and the popup's warnings.
+log = "0.4"
+tauri-plugin-log = "2"
+# In-app updates (update.rs): the check, and the dialogs that offer it.
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
+# Launch at login (login_item.rs), and opening the log folder.
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+# A second launch (by hand while the login item already runs) only opens the
+# popup, instead of a second set of tray icons.
+tauri-plugin-single-instance = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std"] }
+# System proxy lookup (PAC) for the updater, see proxy.rs.
+core-foundation-sys = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+# System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs; the tray
+# icon size (badge.rs).
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+lto = "thin"
+opt-level = 3
+panic = "abort"
+strip = true
