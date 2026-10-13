@@ -227,12 +227,13 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Disk Analyzer v${{ steps.meta.outputs.version }}
           body_path: notes.md
+          # Only what people download and what latest.json points to. The
+          # .sig contents are already inside latest.json, and the apps read
+          # latest.json from the fixed release below, not from here.
           files: |
             bundles/**/*.dmg
             bundles/**/*.exe
             bundles/**/*.tar.gz
-            bundles/**/*.sig
-            latest.json
           fail_on_unmatched_files: true
 
       # The installed apps read latest.json from this fixed release

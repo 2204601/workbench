@@ -217,7 +217,7 @@ npm run tauri build -- --config /tmp/no-updater.json
 リリースには、インストーラのほかにアプリ内アップデート用のファイルが添付されます。
 
 - `Shelf_<バージョン>_aarch64.dmg` / `Shelf_<バージョン>_x64-setup.exe`：初回インストール用
-- `Shelf.app.tar.gz` と `.sig`、`-setup.exe` の `.sig`、`latest.json`：アプリ内アップデート用
+- `Shelf.app.tar.gz`：アプリ内アップデート用（macOS。Windows は `-setup.exe` をそのまま使う）
 
 インストール済みのアプリは `https://github.com/2204601/workbench/releases/download/shelf-updater/latest.json` を見ます（`tauri.conf.json` の `plugins.updater.endpoints`）。このリポジトリには他のツールのリリースも並ぶため、image-library のように `releases/latest` は使えません。そこでリリースのたびに、`shelf-updater` という固定のリリース（プレリリース扱い）の `latest.json` を新しい版のものに置き換えています。**`shelf-updater` のリリースとタグは消さないでください**（配布済みのアプリが更新を見つけられなくなります）。
 
