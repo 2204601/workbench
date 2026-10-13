@@ -10,6 +10,8 @@
  */
 import {
   ArrowRight,
+  BadgeCheck,
+  CalendarCheck,
   CalendarDays,
   Check,
   Circle,
@@ -68,6 +70,7 @@ import { pageBox, stepZoom } from "./layout";
 import { findNext } from "./search";
 import { checkForUpdate } from "./update";
 import { bringToFront, deleteSelectedAnnot } from "../components/Overlay";
+import { useSealDialog } from "../components/SealDialog";
 import { activeDoc, findAnnot, newAnnotId, useStore, type S, type Tool } from "../store";
 
 export interface Command {
@@ -349,6 +352,22 @@ export const COMMANDS: Command[] = [
     run: (s) => s.openDialog("stamps"),
   },
   { id: "tool.imageFile", title: "画像ファイルを置く…", icon: ImagePlus, words: ["写真", "PNG", "JPEG", "画像を入れる"], enabled: editable, run: () => void chooseImage() },
+  {
+    id: "stamp.date",
+    title: "日付印を作る…",
+    icon: CalendarCheck,
+    words: ["日付入りの印鑑", "データネーム", "ハンコ", "受付印", "丸い印"],
+    enabled: editable,
+    run: () => useSealDialog.getState().open("date"),
+  },
+  {
+    id: "stamp.word",
+    title: "文字の印を作る…",
+    icon: BadgeCheck,
+    words: ["承認済み", "社外秘", "受領", "コピー", "回覧", "至急", "スタンプ", "ゴム印"],
+    enabled: editable,
+    run: () => useSealDialog.getState().open("word"),
+  },
   {
     id: "sign.draw",
     title: "手書きの署名を作る…",

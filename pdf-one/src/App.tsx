@@ -8,6 +8,7 @@ import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dial
 import { DropOverlay, useFileDrop } from "./components/DropZone";
 import { Organizer } from "./components/Organizer";
 import { Ribbon } from "./components/Ribbon";
+import { SealDialog } from "./components/SealDialog";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShortcutHelp } from "./components/ShortcutHelp";
@@ -136,6 +137,7 @@ export default function App() {
       {dialog === "stamps" && <StampDialog />}
       {dialog === "split" && <SplitDialog />}
       {dialog === "signature" && <SignatureDialog />}
+      {dialog === "seal" && <SealDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />

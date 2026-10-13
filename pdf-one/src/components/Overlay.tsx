@@ -17,6 +17,7 @@ import {
   type Rect,
 } from "../lib/geometry";
 import { imageUrl } from "../lib/images";
+import { sealLayout } from "../lib/seal";
 import { LINE_HEIGHT, TEXT_PADDING, textFontFamily, textHeight, textWidth, wrapText } from "../lib/text";
 import { activeDoc, newAnnotId, useStore, type Tool } from "../store";
 import { NotePopup } from "./NotePopup";
@@ -36,7 +37,7 @@ export const useEditing = create<{ id: string | null; fresh: boolean; set: (id: 
 );
 
 /** Tools that draw on the page (they take the pointer from the text). */
-const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "eraser"];
+const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "eraser", "seal"];
 
 /** Tools that type into a text box. */
 const TYPING: Tool[] = ["text", "fill"];
@@ -58,7 +59,7 @@ function segmentDistance(p: Point, a: Point, b: Point): number {
 }
 
 /** Kinds that can be moved and resized by hand. */
-const BOXED = new Set(["rect", "ellipse", "text", "image", "ink"]);
+const BOXED = new Set(["rect", "ellipse", "text", "image", "ink", "seal"]);
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -95,6 +96,7 @@ function annotBase(tool: Tool): Annot {
     fontSize: style.fontSize,
     rotation: 0,
     image: null,
+    seal: null,
     contents: "",
     author: s.author,
     modified: "",
@@ -173,8 +175,8 @@ export const Overlay = memo(function Overlay({
           d.handle.includes("s") ? y2 + dy : y2,
         ];
         b = normalize(b);
-        // Pictures keep their shape from the corners.
-        if (d.orig.kind === "image" && d.handle.length === 2) {
+        // Pictures and round seals keep their shape from the corners.
+        if ((d.orig.kind === "image" || (d.orig.kind === "seal" && d.orig.seal === "round")) && d.handle.length === 2) {
           const ratio = (y2 - y1) / (x2 - x1 || 1);
           const w = Math.max(b[2] - b[0], 8);
           const h = w * ratio;
@@ -458,6 +460,33 @@ export const Overlay = memo(function Overlay({
         useEditing.getState().set(a.id, true);
         return;
       }
+      case "seal": {
+        const seal = st().pendingSeal;
+        if (!seal) {
+          st().toast("先に「印鑑・画像」で印を作ってください", true);
+          st().setTool("select");
+          return;
+        }
+        const [w, h] = [seal.size[0] * px, seal.size[1] * px];
+        const [x, y] = d.start;
+        const a: Annot = {
+          ...base,
+          kind: "seal",
+          seal: seal.shape,
+          text: seal.lines.join("\n"),
+          color: seal.color,
+          width: seal.width,
+          fontSize: seal.fontSize,
+          fill: null,
+          rotation,
+          rect: rectToPdf(matrix, [x - w / 2, y - h / 2, x + w / 2, y + h / 2]),
+        };
+        add(a, () => {
+          backToSelect();
+          select(a.id);
+        });
+        return;
+      }
       case "image": {
         const img = st().pendingImage;
         if (!img) {
@@ -636,7 +665,8 @@ export const Overlay = memo(function Overlay({
         break;
       }
       case "text":
-      case "image": {
+      case "image":
+      case "seal": {
         if (!a.rect) break;
         const r = rectToScreen(matrix, a.rect);
         const turn = screenTurn(rotation, a.rotation);
@@ -654,6 +684,12 @@ export const Overlay = memo(function Overlay({
           boxes.push(
             <div key={a.id} {...events} className={`absolute ${hit}`} style={style}>
               {a.image !== null && <AnnotImage id={a.image} />}
+            </div>,
+          );
+        } else if (a.kind === "seal") {
+          boxes.push(
+            <div key={a.id} {...events} className={`absolute ${hit}`} style={style}>
+              <SealView a={a} w={rw} h={rh} />
             </div>,
           );
         } else {
@@ -814,6 +850,30 @@ export const Overlay = memo(function Overlay({
     </div>
   );
 });
+
+/** A seal as lines and words (the same layout the file gets, lib/seal.ts). */
+function SealView({ a, w, h }: { a: Annot; w: number; h: number }) {
+  const shape = a.seal === "box" ? "box" : "round";
+  const l = sealLayout(shape, w, h, a.fontSize, a.width, a.text.split("\n").map((t) => t.trim()));
+  const i = a.width / 2;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" className="pointer-events-none block" style={{ fontFamily: textFontFamily() }}>
+      {shape === "round" ? (
+        <ellipse cx={w / 2} cy={h / 2} rx={w / 2 - i} ry={h / 2 - i} fill="none" stroke={a.color} strokeWidth={a.width} />
+      ) : (
+        <rect x={i} y={i} width={w - a.width} height={h - a.width} fill="none" stroke={a.color} strokeWidth={a.width} />
+      )}
+      {l.dividers.map(([y, x1, x2], k) => (
+        <line key={k} x1={x1} y1={h - y} x2={x2} y2={h - y} stroke={a.color} strokeWidth={a.width} />
+      ))}
+      {l.lines.map((line, k) => (
+        <text key={k} x={line.x} y={h - line.y} fontSize={line.size} fill={a.color} dominantBaseline="central" style={{ fontKerning: "none" }}>
+          {line.text}
+        </text>
+      ))}
+    </svg>
+  );
+}
 
 function AnnotImage({ id }: { id: number }) {
   const [url, setUrl] = useState<string | null>(null);

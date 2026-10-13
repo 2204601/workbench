@@ -48,6 +48,7 @@ function markup(kind: AnnotKind, d: Doc, geoms: PageGeom[], area?: { uid: string
       fontSize: 12,
       rotation: 0,
       image: null,
+      seal: null,
       contents: "",
       author: st().author,
       modified: "",

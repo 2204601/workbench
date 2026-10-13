@@ -43,6 +43,10 @@ pub enum AnnotKind {
     Note,
     /// A picture: seal, signature, logo (Stamp).
     Image,
+    /// A seal drawn by the app (Stamp): a round date seal, or a word in a
+    /// box (承認済み, 社外秘). Vector, in the embedded font, so it stays
+    /// sharp and its words can be changed.
+    Seal,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -78,6 +82,10 @@ pub struct Annot {
     pub rotation: u16,
     /// A picture in the image store (image.rs).
     pub image: Option<u32>,
+    /// A seal's shape: "round" (a date seal: three lines, the date in the
+    /// middle band) or "box" (one word in a frame). The words are in `text`,
+    /// one per line.
+    pub seal: Option<String>,
     /// The comment (pop-up note), /Contents.
     pub contents: String,
     pub author: String,
@@ -103,6 +111,7 @@ impl Default for Annot {
             font_size: 12.0,
             rotation: 0,
             image: None,
+            seal: None,
             contents: String::new(),
             author: String::new(),
             modified: String::new(),

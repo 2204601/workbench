@@ -25,7 +25,8 @@ export type AnnotKind =
   | "arrow"
   | "text"
   | "note"
-  | "image";
+  | "image"
+  | "seal";
 
 /**
  * An annotation (src-tauri/src/pdf/mod.rs `Annot`). Coordinates are in the
@@ -56,6 +57,8 @@ export interface Annot {
   rotation: number;
   /** A picture in Rust's image store. */
   image: number | null;
+  /** A seal the app draws: "round" (a date seal, three lines) or "box" (a word). Its words are `text`, one per line. */
+  seal: "round" | "box" | null;
   /** The comment. */
   contents: string;
   author: string;

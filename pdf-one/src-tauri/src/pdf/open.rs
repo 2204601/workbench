@@ -330,9 +330,24 @@ fn convert(doc: &Document, id: ObjectId, d: &Dictionary, images: &mut ImageStore
             }
         }
         b"Stamp" => {
-            // Only our own pictures: we know how their appearance is made.
+            // Only our own pictures and seals: we know how their appearance is made.
             if !a.id.starts_with(OWN_PREFIX) {
                 return None;
+            }
+            if let Some(shape) = &style.seal {
+                a.kind = AnnotKind::Seal;
+                a.rect = rect_of(d.get(b"Rect").ok()?);
+                a.rotation = style.rotation % 360;
+                a.text = std::mem::take(&mut a.contents).replace("\r\n", "\n").replace('\r', "\n");
+                a.font_size = style.font_size.unwrap_or(9.0);
+                a.width = style.width.unwrap_or(1.5);
+                a.seal = Some(shape.clone());
+                if let Some(r) = a.rect {
+                    if !(r[2] > r[0] && r[3] > r[1]) {
+                        return None;
+                    }
+                }
+                return Some(a);
             }
             let ap = get_dict(doc, d, b"AP")?;
             let n = ref_id(ap.get(b"N").ok()?)?;

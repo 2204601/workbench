@@ -24,7 +24,12 @@ export interface RibbonTab {
 }
 
 const SHAPES: RibbonMenu = { id: "shapes", title: "図形", icon: Shapes, items: ["tool.rect", "tool.ellipse", "tool.line", "tool.arrow"] };
-const STAMPS: RibbonMenu = { id: "stamps", title: "印鑑・画像", icon: Stamp, items: ["tool.image", "tool.imageFile"] };
+const STAMPS: RibbonMenu = {
+  id: "stamps",
+  title: "印鑑・画像",
+  icon: Stamp,
+  items: ["tool.image", "stamp.date", "stamp.word", "-", "tool.imageFile"],
+};
 const SIGN: RibbonMenu = { id: "sign", title: "署名", icon: Signature, items: ["sign.draw", "tool.image", "tool.imageFile"] };
 
 export const RIBBON: RibbonTab[] = [

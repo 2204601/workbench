@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { ClipboardPaste, ImagePlus, Plus, Signature, X } from "lucide-react";
+import { CalendarCheck, ClipboardPaste, ImagePlus, Plus, Signature, X } from "lucide-react";
+import { useSealDialog } from "./SealDialog";
 import { useCallback, useEffect, useState } from "react";
 import { chooseImage, placePicture } from "../lib/actions";
 import { api, type ImageInfo, type Stamp } from "../lib/api";
@@ -100,6 +101,10 @@ export function StampDialog() {
         <button onClick={() => st().openDialog("signature")} className="flex items-center gap-1.5 rounded-md bg-raised px-3 py-1.5 hover:bg-hover">
           <Signature size={14} />
           手書きの署名を作る…
+        </button>
+        <button onClick={() => useSealDialog.getState().open("date")} className="flex items-center gap-1.5 rounded-md bg-raised px-3 py-1.5 hover:bg-hover">
+          <CalendarCheck size={14} />
+          日付印を作る…
         </button>
         <span className="flex items-center gap-1 text-xs text-dim">
           <ClipboardPaste size={12} />

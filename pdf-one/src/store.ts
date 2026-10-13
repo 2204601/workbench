@@ -4,6 +4,7 @@
 // id.
 import { create } from "zustand";
 import type { Annot, ImageInfo } from "./lib/api";
+import type { SealShape } from "./lib/seal";
 
 export type ToastKind = "success" | "info" | "error";
 
@@ -33,7 +34,18 @@ export interface Updating {
   installing?: boolean;
 }
 
-export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | null;
+export type Dialog = "settings" | "shortcuts" | "stamps" | "split" | "signature" | "seal" | null;
+
+/** A seal made in the dialog, waiting to be placed (the seal tool). */
+export interface PendingSeal {
+  shape: SealShape;
+  lines: string[];
+  color: string;
+  fontSize: number;
+  width: number;
+  /** Its size on the page in points. */
+  size: [number, number];
+}
 
 /** What a click or a drag on a page does. */
 export type Tool =
@@ -58,7 +70,9 @@ export type Tool =
   | "dot"
   | "dash"
   | "date"
-  | "eraser";
+  | "eraser"
+  // A seal from the dialog (日付印, 文字の印), placed with a click.
+  | "seal";
 
 /** The look new annotations of a tool get (and the selected one shows). */
 export interface ToolStyle {
@@ -164,6 +178,8 @@ interface State {
   styles: Record<Tool, ToolStyle>;
   /** The picture the image tool puts down next. */
   pendingImage: ImageInfo | null;
+  /** The seal the seal tool puts down next. */
+  pendingSeal: PendingSeal | null;
   /** What the left panel shows. */
   panel: "pages" | "comments" | "outline" | null;
   /** The right panel (詳細: what is selected, docs/UX.md §7). */
@@ -195,6 +211,7 @@ interface State {
   setTool: (t: Tool) => void;
   setStyle: (t: Tool, patch: Partial<ToolStyle>) => void;
   setPendingImage: (i: ImageInfo | null) => void;
+  setPendingSeal: (s: PendingSeal | null) => void;
   setPanel: (p: State["panel"]) => void;
   setDetails: (on: boolean) => void;
   setOrganizer: (on: boolean) => void;
@@ -257,6 +274,7 @@ export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   dash: { ...PEN, color: "#111111", width: 1.5 },
   date: { color: "#111111", width: 0, opacity: 1, fill: null, fontSize: 11 },
   eraser: PEN,
+  seal: { color: "#d62828", width: 1.5, opacity: 1, fill: null, fontSize: 9 },
 };
 
 function savedStyles(): Record<Tool, ToolStyle> {
@@ -299,6 +317,7 @@ export const useStore = create<State>()((set, get) => {
     tool: "select",
     styles: savedStyles(),
     pendingImage: null,
+    pendingSeal: null,
     panel: savedPanel === "none" ? null : ((savedPanel as State["panel"]) ?? "pages"),
     details: load("details") !== "off",
     organizer: false,
@@ -341,7 +360,7 @@ export const useStore = create<State>()((set, get) => {
       }),
 
     setTool: (tool) => {
-      set({ tool, ...(tool !== "image" ? { pendingImage: null } : {}) });
+      set({ tool, ...(tool !== "image" ? { pendingImage: null } : {}), ...(tool !== "seal" ? { pendingSeal: null } : {}) });
       if (tool !== "select") withDoc(undefined, () => ({ selectedAnnot: null }));
     },
     setStyle: (tool, patch) => {
@@ -350,6 +369,7 @@ export const useStore = create<State>()((set, get) => {
       persist("styles", JSON.stringify(styles));
     },
     setPendingImage: (pendingImage) => set({ pendingImage }),
+    setPendingSeal: (pendingSeal) => set({ pendingSeal }),
     setPanel: (panel) => {
       set({ panel });
       persist("panel", panel ?? "none");

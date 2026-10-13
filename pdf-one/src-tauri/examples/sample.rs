@@ -36,6 +36,24 @@ fn main() -> Result<(), String> {
         };
     let mut annots = vec![
         Annot {
+            kind: AnnotKind::Seal,
+            rect: Some([400.0, 700.0, 468.0, 768.0]),
+            text: "営業部\n2026.10.13\n鈴木".into(),
+            seal: Some("round".into()),
+            font_size: 9.0,
+            width: 1.5,
+            ..base.clone()
+        },
+        Annot {
+            kind: AnnotKind::Seal,
+            rect: Some([400.0, 650.0, 490.0, 677.0]),
+            text: "承認済み".into(),
+            seal: Some("box".into()),
+            font_size: 16.0,
+            width: 1.5,
+            ..base.clone()
+        },
+        Annot {
             kind: AnnotKind::Text,
             rect: Some([60.0, 700.0, 330.0, 780.0]),
             text: "見積書を確認しました。\n金額は ¥1,234,500 です。".into(),

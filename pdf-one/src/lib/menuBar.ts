@@ -172,6 +172,8 @@ async function build(): Promise<Menu> {
       sep(),
       cmd("tool.image"),
       cmd("tool.imageFile"),
+      cmd("stamp.date"),
+      cmd("stamp.word"),
       sep(),
       cmd("tool.fill"),
       cmd("tool.check"),

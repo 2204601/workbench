@@ -19,6 +19,7 @@ export const KIND_LABEL: Record<AnnotKind, string> = {
   text: "文字",
   note: "付箋",
   image: "印鑑・画像",
+  seal: "印",
 };
 
 const BACK = "終わるには「選択」を押すか Esc";
@@ -69,6 +70,8 @@ function toolHint(tool: Tool, sticky: boolean): string {
       return `いま：日付。置きたい場所をクリックすると今日の日付が入ります（あとで直せます）。${again}`;
     case "eraser":
       return `いま：消しゴム。ペンで書いた線の上をなぞると消えます。${BACK}`;
+    case "seal":
+      return `いま：印。押したい場所をクリックします。${again}`;
   }
 }
 
