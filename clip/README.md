@@ -208,7 +208,7 @@ Linux でもビルドとテストはできますが、クリップボードと�
 
 ### CI
 
-`clip/` 以下か `.github/workflows/clip.yml` が変わると、GitHub Actions で macOS（Apple Silicon）と Windows のテストとビルドが走ります。作られたインストーラは、実行結果ページの Artifacts からダウンロードできます。
+`clip/` 以下か `.github/workflows/clip.yml` を変える PR を作ったとき（その後の push も含む）と、それが `main` にマージされたときに、GitHub Actions で macOS（Apple Silicon）と Windows のテストとビルドが走ります。PR のない作業ブランチへの push では走りません。作られたインストーラは、実行結果ページの Artifacts からダウンロードできます。
 
 署名鍵の Secrets（下記）が使えないとき（フォークからの PR など）は、アップデート用のファイルを作らずにインストーラだけをビルドします。
 
