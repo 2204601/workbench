@@ -1,4 +1,4 @@
-//! The menu bar / tray icon: plain one-colour cards on a shelf, like the system's
+//! The menu bar / tray icon: a plain one-colour tray with an arrow into it, like the system's
 //! own icons, rather than the coloured app icon (drawn in `tray-icon.svg`).
 //!
 //! macOS gets a template image, which the menu bar colours to match itself.

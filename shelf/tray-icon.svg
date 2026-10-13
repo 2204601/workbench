@@ -1,7 +1,6 @@
 <!-- The menu bar / tray icon: one colour on transparent, drawn by the app at run time
      (template on macOS, white or black on Windows). PNGs in src-tauri/icons/tray/. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="11" y="13" width="22" height="29" rx="3.5" fill="none" stroke="currentColor" stroke-width="4.5" transform="rotate(-10 22 27)"/>
-  <rect x="27" y="8" width="24" height="33" rx="4" fill="currentColor"/>
-  <rect x="6" y="49" width="52" height="9" rx="4.5" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8 38h13l4 7h14l4-7h13v13a5 5 0 0 1-5 5H13a5 5 0 0 1-5-5z"/>
+  <path d="M32 6v24M22 20l10 10 10-10"/>
 </svg>
