@@ -13,6 +13,12 @@ const views = new Map<number, Uint8Array>();
 const images = new Map<number, { bytes: Uint8Array; width: number; height: number }>();
 let nextImage = 1;
 
+/**
+ * Page sizes in turn: Letter, A4, A4 landscape, a scan a little off A4.
+ * Real files mix sizes, and the viewer has to scroll through them smoothly.
+ */
+const SIZES = ["0 0 612 792", "0 0 595 842", "0 0 842 595", "0 0 598 845"];
+
 /** A small PDF made by hand: `pages` pages of Helvetica text, a link, a form. */
 function samplePdf(pages: number): Uint8Array {
   const objects: string[] = [];
@@ -57,7 +63,7 @@ function samplePdf(pages: number): Uint8Array {
       fields.push(text, box);
     }
     objects[page - 1] =
-      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${font} 0 R /F2 ${jp} 0 R /Helv ${font} 0 R >> >> /Contents ${content} 0 R /Annots [${annots.map((a) => `${a} 0 R`).join(" ")}] >>`;
+      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [${SIZES[i % SIZES.length]}] /Resources << /Font << /F1 ${font} 0 R /F2 ${jp} 0 R /Helv ${font} 0 R >> >> /Contents ${content} 0 R /Annots [${annots.map((a) => `${a} 0 R`).join(" ")}] >>`;
     kids.push(page);
   }
   // Links go to the last page.
@@ -106,7 +112,7 @@ export function installMockBackend() {
       case "open_pdf": {
         const path = String(a.path);
         const id = nextId++;
-        views.set(id, samplePdf(path.includes("見積") ? 3 : 5));
+        views.set(id, samplePdf(path.includes("見積") ? 3 : 12));
         settings.recent = [path, ...settings.recent.filter((p) => p !== path)].slice(0, 12);
         const opened: OpenedPdf = {
           id,
@@ -152,7 +158,7 @@ export function installMockBackend() {
       case "reveal_file":
         return null;
       case "plugin:dialog|open":
-        return (a.options as { directory?: boolean })?.directory ? "/Users/sample/Documents" : ["/Users/sample/Documents/見積書_2025.pdf"];
+        return (a.options as { directory?: boolean })?.directory ? "/Users/sample/Documents" : ["/Users/sample/Documents/サンプル資料.pdf"];
       case "plugin:dialog|save":
         return (a.options as { defaultPath?: string })?.defaultPath ?? "/Users/sample/Documents/out.pdf";
       case "plugin:dialog|message":

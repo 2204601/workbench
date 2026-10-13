@@ -143,6 +143,15 @@ textarea {
   margin: 0;
   border: 0;
 }
+/* Pages near the view are put in and taken out while scrolling, and their
+   canvases replaced when drawn. The browser's scroll anchoring "corrects"
+   the scroll position for those changes and throws the view a page or more
+   away (WebView2 / Chromium, and Safari). The positions are ours (absolute),
+   so anchoring has nothing to keep. Same for the virtual thumbnail list. */
+.pdfViewer,
+[data-virtual-list] {
+  overflow-anchor: none;
+}
 .pdfViewer .textLayer {
   z-index: 1;
 }
