@@ -5,6 +5,7 @@ import { fileUrl } from "../lib/api";
 import { fitTimeline, setTimelineWidth } from "../lib/commands";
 import { seconds, timecode } from "../lib/format";
 import { seek } from "../lib/player";
+import { openSource, showTimeline } from "../lib/sourcePlayer";
 import type { Clip, Media, Overlay } from "../lib/project";
 import { shapeOf } from "../lib/stamps";
 import {
@@ -190,7 +191,9 @@ function ClipBlock({ it, l, zoom, view, onMoveStart }: {
       className={`group absolute overflow-hidden rounded-md border bg-[#2e3a52] ${selected ? "z-10 border-fg ring-2 ring-accent" : "border-[#4a5a7a]"}`}
       style={{ left, width, top: RULER_H + 1, height: VIDEO_H - 2 }}
       onPointerDown={(e) => onMoveStart(e, it)}
-      title={`${m.name}\n${seconds(it.duration)}（${timecode(it.clip.start)} 〜 ${timecode(it.clip.end)}）`}
+      // The file this came from, with this part marked: to take a part next to it.
+      onDoubleClick={() => m.kind === "video" && openSource(m.id, { in: it.clip.start, out: it.clip.end })}
+      title={`${m.name}\n${seconds(it.duration)}（${timecode(it.clip.start)} 〜 ${timecode(it.clip.end)}）${m.kind === "video" ? "\nダブルクリックで素材を開く" : ""}`}
     >
       <Filmstrip it={it} m={m} info={info} from={from} zoom={zoom} width={width} view={view} left={left} />
       {wave && it.clip.volume > 0 && (
@@ -356,7 +359,8 @@ export function Timeline() {
   // Fit when the first clips arrive.
   const hadClips = useRef(false);
   useEffect(() => {
-    if (!hadClips.current && project.clips.length) requestAnimationFrame(fitTimeline);
+    // Not closer than 100 px a second: the first part from the source view may be a second long.
+    if (!hadClips.current && project.clips.length) requestAnimationFrame(() => fitTimeline(100));
     hadClips.current = project.clips.length > 0;
   }, [project.clips.length]);
 
@@ -471,7 +475,8 @@ export function Timeline() {
   };
 
   return (
-    <div className="relative flex shrink-0 flex-col border-t border-line bg-panel" style={{ height }}>
+    // Working on the timeline: the preview shows the edit again.
+    <div className="relative flex shrink-0 flex-col border-t border-line bg-panel" style={{ height }} onPointerDownCapture={showTimeline}>
       <div className="absolute -top-1 right-0 left-0 z-50 h-2 cursor-ns-resize" onPointerDown={onResize} />
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-2">
         <CommandButton id="edit.split" icon={Scissors} text="分割" />

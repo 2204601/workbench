@@ -9,10 +9,13 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import { api, baseName, type ExportProgress } from "./api";
 import { buildJob, type Quality } from "./exportJob";
 import { warn } from "./log";
+import { timecode } from "./format";
 import { MEDIA_EXTENSIONS, prepare, probeFiles, reattach } from "./media";
 import { notifyIfAway } from "./osNotify";
 import { currentLayout, pause, resetPlayer, seek } from "./player";
 import type { TextPreset } from "./presets";
+import { clipOfRange } from "./source";
+import { closeSource, openSource, seek as seekSource, sourceMedia } from "./sourcePlayer";
 import { transitionLabel } from "./transitions";
 import {
   ASPECTS,
@@ -28,6 +31,7 @@ import {
   type Clip,
   type Media,
   type Overlay,
+  type Project,
   type TransitionKind,
 } from "./project";
 import {
@@ -49,27 +53,35 @@ const proj = () => st().project;
 
 // ---------------------------------------------------------------- media
 
-/** Adds files: to the media list, and onto the end of the timeline. */
+/**
+ * Adds files to the media list. They go on the timeline from there: a
+ * video by the parts marked in the source view, a picture whole. The first
+ * video opens in the source view.
+ */
 export async function addFiles(paths: string[]) {
   if (!paths.length) return;
-  const before = proj();
-  const media = await probeFiles(before, paths);
+  const media = await probeFiles(proj(), paths);
   if (!media.length) return;
-  let p = proj();
+  const p = proj();
   const fresh = media.filter((m) => !p.media.some((x) => x.id === m.id));
-  // The first video sets the frame's shape: a phone video makes a tall project.
-  if (!p.clips.length) {
-    const first = media.find((m) => m.kind === "video") ?? media[0];
-    const aspect: Aspect = first.width > first.height ? "16:9" : first.width < first.height ? "9:16" : "1:1";
-    p = { ...p, ...{ width: ASPECTS[aspect].width, height: ASPECTS[aspect].height } };
-  }
-  p = { ...p, media: [...p.media, ...fresh] };
-  const clips = media.map((m) => clipOf(m, newId("c"), IMAGE_SECONDS));
-  p = insertClips(p, p.clips.length, clips);
-  st().commit(p);
-  st().select({ kind: "clip", id: clips[0].id });
+  if (fresh.length) st().commit({ ...p, media: [...p.media, ...fresh] });
   for (const m of fresh) void prepare(m);
-  st().notify({ title: `${media.length} 個の素材をタイムラインの最後に並べました`, kind: "success", duration: 3000 });
+  st().setLeftTab("media");
+  const video = media.find((m) => m.kind === "video");
+  if (video) openSource(video.id);
+  st().notify({
+    title: `${media.length} 個の素材を追加しました`,
+    detail: video ? "使う部分を開始点（I）と終了点（O）で決めて、タイムラインに入れます" : "素材を押すとタイムラインに入ります",
+    kind: "success",
+    duration: 4000,
+  });
+}
+
+/** An empty timeline takes the shape of the first thing put on it: a phone video makes a tall project. */
+function shapedFor(p: Project, m: Media): Project {
+  if (p.clips.length) return p;
+  const aspect: Aspect = m.width > m.height ? "16:9" : m.width < m.height ? "9:16" : "1:1";
+  return { ...p, width: ASPECTS[aspect].width, height: ASPECTS[aspect].height };
 }
 
 export async function importDialog() {
@@ -82,13 +94,55 @@ export async function importDialog() {
   await addFiles(Array.isArray(picked) ? picked : [picked]);
 }
 
-/** A media file onto the timeline at `index` (default: where the playhead is). */
+/**
+ * A media file onto the timeline at `index` (default: where the playhead
+ * is): the part marked in the source view if it is open there, else all of it.
+ */
 export function addMediaToTimeline(m: Media, index?: number) {
-  const p = proj();
-  const at = index ?? insertIndexAt(layout(p), st().time);
+  const s = st();
+  const marked = s.source?.mediaId === m.id && (s.source.in !== null || s.source.out !== null);
+  if (marked) {
+    insertSourceRange(index);
+    return;
+  }
+  const p = shapedFor(proj(), m);
+  const at = index ?? insertIndexAt(layout(p), s.time);
   const c = clipOf(m, newId("c"), IMAGE_SECONDS);
-  st().commit(insertClips(p, at, [c]));
-  st().select({ kind: "clip", id: c.id });
+  s.commit(insertClips(p, at, [c]));
+  s.select({ kind: "clip", id: c.id });
+}
+
+/**
+ * The part marked in the source view onto the timeline: at the playhead
+ * (`index` undefined), at the end (`"end"`) or at `index`. The timeline's
+ * playhead then waits after it, so the next part goes after this one, and
+ * the source view is ready to mark the next part.
+ */
+export function insertSourceRange(index?: number | "end") {
+  const s = st();
+  const m = sourceMedia();
+  if (!s.source || !m) return;
+  const c = clipOfRange(m, s.source, newId("c"));
+  if (!c) {
+    s.toast("範囲が短すぎます。開始点と終了点を決め直してください", true);
+    return;
+  }
+  const p = shapedFor(proj(), m);
+  const at = index === "end" ? p.clips.length : (index ?? insertIndexAt(layout(p), s.time));
+  const next = insertClips(p, at, [c]);
+  s.commit(next);
+  s.select({ kind: "clip", id: c.id });
+  const placed = layout(next).items.find((it) => it.clip.id === c.id)!;
+  s.setTime(placed.start + placed.duration);
+  // Ready for the next part: from where this one ended.
+  s.setSource({ ...s.source, in: null, out: null });
+  seekSource(c.end);
+  s.notify({
+    title: "タイムラインに入れました",
+    detail: `${m.name}（${timecode(c.start)} 〜 ${timecode(c.end)}）`,
+    kind: "success",
+    duration: 2500,
+  });
 }
 
 export function removeMedia(m: Media) {
@@ -97,6 +151,7 @@ export function removeMedia(m: Media) {
     st().toast("タイムラインで使っている素材です。先にクリップを消してください", true);
     return;
   }
+  if (st().source?.mediaId === m.id) closeSource();
   st().commit({ ...p, media: p.media.filter((x) => x.id !== m.id) });
 }
 

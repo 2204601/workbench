@@ -11,6 +11,7 @@ import {
   transitionTarget,
 } from "../lib/actions";
 import { fileUrl } from "../lib/api";
+import { openSource } from "../lib/sourcePlayer";
 import { timecode } from "../lib/format";
 import { FONTS } from "../lib/overlayRender";
 import { TEXT_PRESETS } from "../lib/presets";
@@ -60,16 +61,21 @@ const heading = "mb-2 text-xs font-semibold text-dim";
 
 // ---------------------------------------------------------------- media
 
+/** The pointer moved the media file (a drag): the click that follows opens nothing. */
+let justDragged = false;
+
 /** Starts dragging a media file toward the timeline (pointer events: Platform UI §6). */
 function startMediaDrag(e: React.PointerEvent, m: Media) {
   if (e.button !== 0) return;
   const x0 = e.clientX;
   const y0 = e.clientY;
   let dragging = false;
+  justDragged = false;
   const s = useStore.getState();
   const move = (ev: PointerEvent) => {
     if (!dragging && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
     dragging = true;
+    justDragged = true;
     s.setMediaDrag({ mediaId: m.id, x: ev.clientX, y: ev.clientY });
   };
   const up = () => {
@@ -109,13 +115,25 @@ function MediaThumb({ m }: { m: Media }) {
 
 function MediaItem({ m }: { m: Media }) {
   const info = useStore((s) => s.media[m.id]);
-  const used = useStore((s) => s.project.clips.some((c) => c.mediaId === m.id));
+  const uses = useStore((s) => s.project.clips.reduce((n, c) => n + (c.mediaId === m.id ? 1 : 0), 0));
+  const open = useStore((s) => s.source?.mediaId === m.id);
+  const video = m.kind === "video";
+  // A video opens in the source view to pick parts of it; a picture goes on the timeline whole.
+  const onClick = () => {
+    if (justDragged) return;
+    if (video) openSource(m.id);
+  };
   return (
     <div
-      className="group relative cursor-grab overflow-hidden rounded-lg border border-line bg-bg active:cursor-grabbing"
+      className={`group relative cursor-pointer overflow-hidden rounded-lg border bg-bg ${open ? "border-accent ring-1 ring-accent" : "border-line"}`}
       onPointerDown={(e) => startMediaDrag(e, m)}
-      onDoubleClick={() => addMediaToTimeline(m)}
-      title={`${m.name}\nダブルクリックかドラッグでタイムラインへ`}
+      onClick={onClick}
+      onDoubleClick={() => !video && addMediaToTimeline(m)}
+      title={
+        video
+          ? `${m.name}\n押すと素材の表示で開きます。使う部分を決めてタイムラインへ`
+          : `${m.name}\nダブルクリックかドラッグでタイムラインへ`
+      }
     >
       <div className="relative aspect-video bg-black">
         <MediaThumb m={m} />
@@ -136,18 +154,29 @@ function MediaItem({ m }: { m: Media }) {
         )}
       </div>
       <div className="flex items-center gap-1 px-1.5 py-1">
-        <span className={`min-w-0 flex-1 truncate text-[11px] ${used ? "" : "text-dim"}`}>{m.name}</span>
+        <span className={`min-w-0 flex-1 truncate text-[11px] ${uses ? "" : "text-dim"}`}>{m.name}</span>
+        {uses > 0 && (
+          <span className="shrink-0 rounded bg-warn/20 px-1 text-[10px] text-warn" title="タイムラインで使っている数">
+            {uses}
+          </span>
+        )}
         <button
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => addMediaToTimeline(m)}
+          onClick={(e) => {
+            e.stopPropagation();
+            addMediaToTimeline(m);
+          }}
           className="rounded p-0.5 text-dim hover:bg-white/10 hover:text-fg"
-          title="再生位置に入れる"
+          title={video ? "再生位置に入れる（範囲を決めてあればその範囲）" : "再生位置に入れる"}
         >
           <Plus size={13} />
         </button>
         <button
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => removeMedia(m)}
+          onClick={(e) => {
+            e.stopPropagation();
+            removeMedia(m);
+          }}
           className="hidden rounded p-0.5 text-dim group-hover:block hover:bg-white/10 hover:text-danger"
           title="素材の一覧から外す"
         >
@@ -171,7 +200,7 @@ function MediaTab() {
       </button>
       {media.length === 0 ? (
         <p className="text-xs leading-relaxed text-dim">
-          ファイルをウィンドウにドロップしても追加できます。追加した順にタイムラインの最後に並びます。
+          ファイルをウィンドウにドロップしても追加できます。動画は押すと開くので、使う部分を「ここから（I）」「ここまで（O）」で決めてタイムラインに入れます。1 本の動画から何か所でも使えます。
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2">

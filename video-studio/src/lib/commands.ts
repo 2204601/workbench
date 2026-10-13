@@ -9,6 +9,7 @@ import {
   Download,
   FilePlus2,
   FolderOpen,
+  ListPlus,
   Redo2,
   Save,
   Scissors,
@@ -26,6 +27,7 @@ import {
   deleteSelection,
   duplicateSelection,
   importDialog,
+  insertSourceRange,
   jumpEdit,
   newProject,
   openProject,
@@ -35,6 +37,7 @@ import {
   stepFrames,
 } from "./actions";
 import { api } from "./api";
+import * as source from "./sourcePlayer";
 import { comboMatches, fromField } from "./keys";
 import { currentLayout, seek, togglePlay } from "./player";
 import { TEXT_PRESETS } from "./presets";
@@ -63,6 +66,7 @@ export interface Command {
 }
 
 const idle = (s: S) => s.exporting === null;
+const inSource = (s: S) => s.view === "source" && s.source !== null;
 const hasClips = (s: S) => s.project.clips.length > 0;
 const ZOOM_STEP = 1.4;
 
@@ -106,15 +110,64 @@ export const COMMANDS: Command[] = [
   { id: "edit.text", title: "文字を入れる", icon: Type, keys: ["T"], enabled: hasClips, run: () => addText(TEXT_PRESETS[0]) },
   { id: "edit.deselect", title: "選択を解除", keys: ["Esc"], enabled: (s) => s.selection !== null, run: (s) => s.select(null) },
 
-  { id: "play.toggle", title: "再生 / 一時停止", keys: ["Space"], enabled: hasClips, run: () => togglePlay() },
-  { id: "play.start", title: "先頭へ", keys: ["Home"], run: () => seek(0) },
-  { id: "play.end", title: "最後へ", keys: ["End"], run: () => seek(currentLayout().duration) },
-  { id: "play.prevFrame", title: "1 コマ戻る", keys: ["ArrowLeft"], run: () => stepFrames(-1) },
-  { id: "play.nextFrame", title: "1 コマ進む", keys: ["ArrowRight"], run: () => stepFrames(1) },
-  { id: "play.back", title: "1 秒戻る", keys: ["Shift+ArrowLeft"], run: (s) => seek(s.time - 1) },
-  { id: "play.forward", title: "1 秒進む", keys: ["Shift+ArrowRight"], run: (s) => seek(s.time + 1) },
+  // In the source view these move through the open file instead.
+  {
+    id: "play.toggle",
+    title: "再生 / 一時停止",
+    keys: ["Space"],
+    enabled: (s) => inSource(s) || hasClips(s),
+    run: (s) => (inSource(s) ? source.toggle() : togglePlay()),
+  },
+  { id: "play.start", title: "先頭へ", keys: ["Home"], run: (s) => (inSource(s) ? source.seek(0) : seek(0)) },
+  {
+    id: "play.end",
+    title: "最後へ",
+    keys: ["End"],
+    run: (s) => (inSource(s) ? source.seek(source.sourceMedia()?.duration ?? 0) : seek(currentLayout().duration)),
+  },
+  { id: "play.prevFrame", title: "1 コマ戻る", keys: ["ArrowLeft"], run: (s) => (inSource(s) ? source.step(-1) : stepFrames(-1)) },
+  { id: "play.nextFrame", title: "1 コマ進む", keys: ["ArrowRight"], run: (s) => (inSource(s) ? source.step(1) : stepFrames(1)) },
+  {
+    id: "play.back",
+    title: "1 秒戻る",
+    keys: ["Shift+ArrowLeft"],
+    run: (s) => (inSource(s) ? source.seek(s.sourceTime - 1) : seek(s.time - 1)),
+  },
+  {
+    id: "play.forward",
+    title: "1 秒進む",
+    keys: ["Shift+ArrowRight"],
+    run: (s) => (inSource(s) ? source.seek(s.sourceTime + 1) : seek(s.time + 1)),
+  },
   { id: "play.prevCut", title: "前のつなぎ目へ", keys: ["ArrowUp"], run: () => jumpEdit(-1) },
   { id: "play.nextCut", title: "次のつなぎ目へ", keys: ["ArrowDown"], run: () => jumpEdit(1) },
+
+  { id: "source.in", title: "開始点を決める", keys: ["I"], enabled: inSource, run: () => source.markPoint("in") },
+  { id: "source.out", title: "終了点を決める", keys: ["O"], enabled: inSource, run: () => source.markPoint("out") },
+  {
+    id: "source.insert",
+    title: "範囲を再生位置に入れる",
+    icon: ListPlus,
+    keys: [","],
+    enabled: inSource,
+    run: () => insertSourceRange(),
+  },
+  { id: "source.append", title: "範囲を最後に足す", keys: ["."], enabled: inSource, run: () => insertSourceRange("end") },
+  { id: "source.clear", title: "開始点と終了点を消す", enabled: (s) => inSource(s) && (s.source!.in !== null || s.source!.out !== null), run: () => source.clearMarks() },
+  {
+    id: "view.timeline",
+    title: "タイムラインを表示",
+    keys: ["Mod+1"],
+    enabled: inSource,
+    run: () => source.showTimeline(),
+  },
+  {
+    id: "view.source",
+    title: "素材を表示",
+    keys: ["Mod+2"],
+    enabled: (s) => s.source !== null && s.view !== "source",
+    run: (s) => source.openSource(s.source!.mediaId),
+  },
 
   { id: "view.zoomIn", title: "タイムラインを拡大", keys: ["Mod+=", "Mod+;"], run: (s) => s.setZoom(s.zoom * ZOOM_STEP) },
   { id: "view.zoomOut", title: "タイムラインを縮小", keys: ["Mod+-"], run: (s) => s.setZoom(s.zoom / ZOOM_STEP) },
@@ -133,9 +186,9 @@ export const COMMANDS: Command[] = [
 /** The whole timeline in its visible width (Timeline.tsx registers how wide that is). */
 let timelineWidth = () => 800;
 export const setTimelineWidth = (f: () => number) => (timelineWidth = f);
-export function fitTimeline() {
+export function fitTimeline(maxZoom = Infinity) {
   const d = currentLayout().duration;
-  if (d > 0) useStore.getState().setZoom((timelineWidth() - 80) / d);
+  if (d > 0) useStore.getState().setZoom(Math.min(maxZoom, (timelineWidth() - 80) / d));
 }
 
 const byId = new Map(COMMANDS.map((c) => [c.id, c]));

@@ -1,11 +1,14 @@
-import { Pause, Play, RotateCw, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
+import { Clapperboard, Film, Pause, Play, RotateCw, SkipBack, SkipForward, StepBack, StepForward, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { stepFrames } from "../lib/actions";
 import { timecode } from "../lib/format";
+import { comboText } from "../lib/keys";
 import { overlayBitmap } from "../lib/overlayRender";
 import { attachCanvas, currentLayout, seek, togglePlay } from "../lib/player";
 import type { Overlay } from "../lib/project";
+import { closeSource, openSource, showTimeline } from "../lib/sourcePlayer";
 import { layout, updateOverlay } from "../lib/timeline";
+import { SourceView } from "./SourceView";
 import { useStore } from "../store";
 
 const st = () => useStore.getState();
@@ -185,7 +188,44 @@ function Transport() {
   );
 }
 
+/** Which of the two the preview shows: the edit, or the media file open for picking parts. */
+function ViewTabs() {
+  const view = useStore((s) => s.view);
+  const m = useStore((s) => (s.source ? s.project.media.find((x) => x.id === s.source!.mediaId) : undefined));
+  if (!m) return null;
+  const tab = (on: boolean) =>
+    `flex min-w-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs ${on ? "bg-raised text-fg" : "text-dim hover:text-fg"}`;
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-2">
+      <button className={tab(view === "timeline")} onClick={showTimeline} title={`タイムラインを表示（${comboText("Mod+1")}）`}>
+        <Film size={13} />
+        タイムライン
+      </button>
+      <div className={`${tab(view === "source")} pr-1`}>
+        <button className="flex min-w-0 items-center gap-1.5" onClick={() => openSource(m.id)} title={`素材を表示（${comboText("Mod+2")}）`}>
+          <Clapperboard size={13} className="shrink-0" />
+          <span className="truncate">素材：{m.name}</span>
+        </button>
+        <button className="rounded p-0.5 hover:bg-white/10" onClick={closeSource} title="素材を閉じる" aria-label="素材を閉じる">
+          <X size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Preview() {
+  const view = useStore((s) => s.view);
+  const sourceMedia = useStore((s) => (s.source ? s.project.media.find((x) => x.id === s.source!.mediaId) : undefined));
+  return (
+    <div className="flex min-w-0 flex-1 flex-col bg-bg">
+      <ViewTabs />
+      {view === "source" && sourceMedia ? <SourceView key={sourceMedia.id} m={sourceMedia} /> : <TimelinePreview />}
+    </div>
+  );
+}
+
+function TimelinePreview() {
   const area = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const p = useStore((s) => s.project);
@@ -232,12 +272,12 @@ export function Preview() {
   };
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-bg">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div ref={area} className="relative flex min-h-0 flex-1 items-center justify-center">
         {empty ? (
           <div className="text-center text-dim">
             <div className="mb-1 text-sm">動画や写真をドロップして始めましょう</div>
-            <div className="text-xs">左の「動画・写真を追加」からも選べます</div>
+            <div className="text-xs">素材を押して使う部分を決め、タイムラインに入れます</div>
           </div>
         ) : (
           <div data-frame className="relative bg-black shadow-xl shadow-black/40" style={{ width: w, height: h }} onPointerDown={onPointerDown}>
