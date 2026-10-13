@@ -21,7 +21,7 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
    - 取り出すものが無ければ、元のバイト列をそのまま渡す（書き直さない）
 4. 取り出した後の lopdf の文書を、保存のもととしてメモリに持つ（`AppState.docs`）
 
-自分で書いた注釈は /NM が `pdfe-` で始まり、標準の項目に入らないもの（テキストボックスの塗りと文字の大きさ、画像の回転）を `/PDFOneStyle`（JSON）に持つ。画像（Stamp）は、自分で書いたものだけを読み戻す（見た目の作り方が分かっているため）。
+自分で書いた注釈は /NM が `pdfe-` で始まり、標準の項目に入らないもの（テキストボックスの塗りと文字の大きさ、画像の回転、印鑑の形）を `/PDFOneStyle`（JSON）に持つ。画像と印鑑（Stamp）は、自分で書いたものだけを読み戻す（見た目の作り方が分かっているため）。印鑑は線と埋め込みフォントの文字で描き、文字の置き方（`annots.rs` の `seal_layout`）は画面（`lib/seal.ts`）と同じ規則にする。
 
 ## 3. 保存するとき（`pdf/compose.rs`）
 
@@ -65,16 +65,22 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
 | `open_pdf` → `pdf_view_bytes` | 開いて、pdf.js に見せるバイト列を 1 回だけ渡す（`tauri::ipc::Response` でそのままのバイト列） |
 | `save_pdf` | ページ・注釈・フォームの値から書く。重いので別スレッド |
 | `add_image` / `add_image_bytes` / `image_bytes` | 画像はRust の画像置き場に持ち、id で指す。貼り付けはバイト列のまま送る |
-| `list_stamps` / `add_stamp` / `remove_stamp` / `use_stamp` | ライブラリ（`stamps/`）。id はファイル名で、フォルダの外を指すものは断る |
+| `compose_pdf` | `save_pdf` と同じ組み立てをして、書かずにバイト列で返す（印刷。`lib/print.ts` が pdf.js で絵にする） |
+| `list_stamps` / `add_stamp` / `add_stamp_bytes` / `remove_stamp` / `use_stamp` | ライブラリ（`stamps/`）。id はファイル名で、フォルダの外を指すものは断る。`add_stamp_bytes` はアプリで描いた署名（PNG のバイト列） |
+| `write_draft` / `list_drafts` / `remove_draft` | 下書き（`drafts/<場所のハッシュ>/`：state.json、meta.json、使った画像）。`lib/drafts.ts` が 30 秒ごとに書き、起動時に一覧して「戻す」 |
 | `take_open_requests` | OS から来た「開く」（起動時の引数、2 つ目の起動、macOS の Opened）。ページが読み込まれる前に来ても失わないよう、Rust が貯めておく |
 
-## 8. CSP
+## 8. 印刷
+
+ページを画像にして WebView の印刷に渡す（`lib/print.ts`）。Rust が保存と同じ PDF を組み（`compose_pdf`。注釈の見た目と入力欄の値が入っている）、pdf.js で 150 dpi に描いた絵を、`#print-root`（印刷のときだけ見える）に用紙サイズのシートとして並べ、`window.print()` を呼ぶ。OS の印刷ダイアログはプリンター・部数・両面を受け持つ。WebView の印刷が使えない環境になったら、Rust から OS の印刷（Windows は XPS、macOS は `NSPrintOperation`）に切り替える（ROADMAP 0.2 の技術メモ）。
+
+## 9. CSP
 
 pdf.js のワーカーは、CMap（埋め込まれていない日本語のフォント用）、標準フォント、JPEG 2000 と JBIG2 の JavaScript デコーダを、アプリ自身のファイルから fetch / import する。そのため `connect-src` に `'self'` を足した（[ADR-0001](../decisions/adr-0001-csp-connect-self.md)）。WebAssembly は使わない（`useWasm: false`）ので `'wasm-unsafe-eval'` は要らない。
 
-## 9. テスト
+## 10. テスト
 
 - Rust のユニットテスト：注釈の種類ごとの外観、開く→取り出す、ページの並べ替え・回転・結合・白紙・重複、フォームの値、フォントの埋め込み（`tests/fixtures/LiberationSans-Regular.ttf`、SIL OFL）、画像、バックアップ
-- `tests/ipc.rs`：JS と同じ引数で、開く → 注釈 5 種と別の文書のページと白紙で保存 → 開き直して同じ注釈が戻る、上書きのバックアップ、エラーの文言
+- `tests/ipc.rs`：JS と同じ引数で、開く → 注釈 6 種（印鑑を含む）と別の文書のページと白紙で保存 → 開き直して同じ注釈が戻る、印刷用の組み立て、上書きのバックアップ、エラーの文言、設定とライブラリ
 - `examples/sample.rs`：注釈を 1 つずつ書いた PDF を作る。Acrobat、Edge、プレビュー、pdftoppm での見え方を目で確かめる用
 - フロント：型チェックと eslint。UI はブラウザのモック（`npm run dev`）で確かめる

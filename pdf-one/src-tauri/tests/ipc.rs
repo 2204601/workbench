@@ -111,6 +111,7 @@ fn annot(kind: &str, extra: Value) -> Value {
         "fontSize": 12,
         "rotation": 0,
         "image": null,
+        "seal": null,
         "contents": "",
         "author": "テスト",
         "modified": "",
@@ -154,6 +155,7 @@ fn open_edit_save_and_open_again() {
         ]},
         { "source": b_id, "index": 0, "rotate": 0, "size": null, "annots": [
             annot("image", json!({ "rect": [400, 100, 480, 180], "image": img["id"] })),
+            annot("seal", json!({ "rect": [100, 100, 168, 168], "seal": "round", "text": "営業部\n2026.10.13\n鈴木", "fontSize": 9, "width": 1.5, "color": "#d62828" })),
         ]},
         { "source": null, "index": 0, "rotate": 0, "size": [595.276, 841.89], "annots": [
             annot("ink", json!({ "paths": [[10, 10, 50, 60, 90, 10]] })),
@@ -172,12 +174,16 @@ fn open_edit_save_and_open_again() {
         .iter()
         .map(|p| (p["page"].as_u64().unwrap(), p["annot"]["kind"].as_str().unwrap()))
         .collect();
-    assert_eq!(kinds, [(0, "text"), (0, "highlight"), (1, "image"), (2, "ink"), (2, "note")]);
+    assert_eq!(kinds, [(0, "text"), (0, "highlight"), (1, "image"), (1, "seal"), (2, "ink"), (2, "note")]);
+    let seal = &c["annots"][3]["annot"];
+    assert_eq!(seal["text"], "営業部\n2026.10.13\n鈴木");
+    assert_eq!(seal["seal"], "round");
+    assert_eq!(seal["fontSize"], 9.0);
     let text = &c["annots"][0]["annot"];
     assert_eq!(text["text"], "確認済み");
     assert_eq!(text["rotation"], 90);
     assert_eq!(text["author"], "テスト");
-    assert_eq!(c["annots"][4]["annot"]["contents"], "ここを直してください");
+    assert_eq!(c["annots"][5]["annot"]["contents"], "ここを直してください");
     let doc = lopdf::Document::load(&out).unwrap();
     let p = doc.get_pages();
     assert_eq!(p.len(), 4);
@@ -185,6 +191,11 @@ fn open_edit_save_and_open_again() {
     assert_eq!(first.get(b"Rotate").unwrap().as_i64().unwrap(), 90);
     assert!(String::from_utf8_lossy(&doc.get_page_content(p[&1])).contains("Page 3"));
     assert!(String::from_utf8_lossy(&doc.get_page_content(p[&2])).contains("Page 1"));
+
+    // The same pages as bytes, for printing: a PDF with the annotations in it.
+    let printed = ui.raw("compose_pdf", json!({ "request": { "pages": pages, "forms": [] } }));
+    assert!(printed.starts_with(b"%PDF-"));
+    assert_eq!(lopdf::Document::load_mem(&printed).unwrap().get_pages().len(), 4);
 
     // Saving over a file keeps the old one in the backups.
     let again = ui

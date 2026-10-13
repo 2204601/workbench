@@ -17,7 +17,8 @@ import {
   type Rect,
 } from "../lib/geometry";
 import { imageUrl } from "../lib/images";
-import { LINE_HEIGHT, TEXT_PADDING, textFontFamily, textHeight, wrapText } from "../lib/text";
+import { sealLayout } from "../lib/seal";
+import { LINE_HEIGHT, TEXT_PADDING, textFontFamily, textHeight, textWidth, wrapText } from "../lib/text";
 import { activeDoc, newAnnotId, useStore, type Tool } from "../store";
 import { NotePopup } from "./NotePopup";
 
@@ -36,10 +37,29 @@ export const useEditing = create<{ id: string | null; fresh: boolean; set: (id: 
 );
 
 /** Tools that draw on the page (they take the pointer from the text). */
-const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image"];
+const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "eraser", "seal"];
+
+/** Tools that type into a text box. */
+const TYPING: Tool[] = ["text", "fill"];
+
+/** Today as 2026/10/13 (the date tool; it can be edited after). */
+function todayText(): string {
+  const t = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getFullYear()}/${p(t.getMonth() + 1)}/${p(t.getDate())}`;
+}
+
+/** Distance from `p` to the segment a–b. */
+function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
 
 /** Kinds that can be moved and resized by hand. */
-const BOXED = new Set(["rect", "ellipse", "text", "image", "ink"]);
+const BOXED = new Set(["rect", "ellipse", "text", "image", "ink", "seal"]);
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -48,7 +68,8 @@ type Drag =
   | { kind: "move"; id: string; start: Point; orig: Annot; moved: boolean }
   | { kind: "resize"; id: string; handle: Handle; start: Point; orig: Annot; box: Rect; pdfBox: Rect; moved: boolean }
   | { kind: "end"; id: string; end: 0 | 1; orig: Annot; moved: boolean }
-  | { kind: "create"; tool: Tool; start: Point; cur: Point; points: Point[] };
+  | { kind: "create"; tool: Tool; start: Point; cur: Point; points: Point[] }
+  | { kind: "erase"; erased: boolean };
 
 /** Screen distance to PDF distance (the linear part of the inverse). */
 function toPdfDelta(m: Matrix, dx: number, dy: number): Point {
@@ -75,6 +96,7 @@ function annotBase(tool: Tool): Annot {
     fontSize: style.fontSize,
     rotation: 0,
     image: null,
+    seal: null,
     contents: "",
     author: s.author,
     modified: "",
@@ -129,10 +151,10 @@ export const Overlay = memo(function Overlay({
   // ----------------------------------------------------- moving, resizing
 
   useEffect(() => {
-    if (!drag || drag.kind === "create") return;
+    if (!drag || drag.kind === "create" || drag.kind === "erase") return;
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current;
-      if (!d || d.kind === "create") return;
+      if (!d || d.kind === "create" || d.kind === "erase") return;
       const p = local(e);
       if (!d.moved) {
         if (d.kind !== "end" && Math.hypot(p[0] - d.start[0], p[1] - d.start[1]) < 3) return;
@@ -153,8 +175,8 @@ export const Overlay = memo(function Overlay({
           d.handle.includes("s") ? y2 + dy : y2,
         ];
         b = normalize(b);
-        // Pictures keep their shape from the corners.
-        if (d.orig.kind === "image" && d.handle.length === 2) {
+        // Pictures and round seals keep their shape from the corners.
+        if ((d.orig.kind === "image" || (d.orig.kind === "seal" && d.orig.seal === "round")) && d.handle.length === 2) {
           const ratio = (y2 - y1) / (x2 - x1 || 1);
           const w = Math.max(b[2] - b[0], 8);
           const h = w * ratio;
@@ -216,6 +238,35 @@ export const Overlay = memo(function Overlay({
 
   // ----------------------------------------------------- making new ones
 
+  /**
+   * The eraser: pen strokes under the pointer go away, one stroke at a
+   * time (the annotation when its last stroke goes). One undo step per drag.
+   */
+  const eraseAt = (p: Point) => {
+    const d = activeDoc(st());
+    const list = d?.annots[uid] ?? [];
+    for (const a of list) {
+      if (a.kind !== "ink") continue;
+      const reach = Math.max(8, (a.width * px) / 2 + 4);
+      const keep = a.paths.filter((path) => {
+        let prev: Point | null = null;
+        for (let k = 0; k + 1 < path.length; k += 2) {
+          const q = apply(matrix, [path[k], path[k + 1]]);
+          if (prev ? segmentDistance(p, prev, q) < reach : Math.hypot(p[0] - q[0], p[1] - q[1]) < reach) return false;
+          prev = q;
+        }
+        return true;
+      });
+      if (keep.length === a.paths.length) continue;
+      const dr = dragRef.current;
+      if (dr?.kind === "erase" && !dr.erased) {
+        st().checkpoint();
+        setDrag({ kind: "erase", erased: true });
+      }
+      st().amend((s) => (keep.length ? updateAnnot(s, a.id, { paths: keep }) : removeAnnot(s, a.id)));
+    }
+  };
+
   const onRootDown = (e: React.PointerEvent) => {
     if (!drawing || e.button !== 0) return;
     e.preventDefault();
@@ -223,11 +274,18 @@ export const Overlay = memo(function Overlay({
     // Finishing a text box: the click that ends it doesn't start another.
     if (editing) {
       useEditing.getState().set(null);
-      if (tool === "text") return;
+      if (TYPING.includes(tool)) return;
     }
     const p = local(e);
+    if (tool === "eraser") {
+      root.current!.setPointerCapture(e.pointerId);
+      dragRef.current = { kind: "erase", erased: false };
+      setDrag(dragRef.current);
+      eraseAt(p);
+      return;
+    }
     // The text tool on a text box types in it, as in Acrobat.
-    if (tool === "text" && !readOnly) {
+    if (TYPING.includes(tool) && !readOnly) {
       const hit = [...(annots ?? [])].reverse().find((a) => {
         if (a.kind !== "text" || !a.rect) return false;
         const [x1, y1, x2, y2] = rectToScreen(matrix, a.rect);
@@ -245,6 +303,10 @@ export const Overlay = memo(function Overlay({
 
   const onRootMove = (e: React.PointerEvent) => {
     const d = dragRef.current;
+    if (d?.kind === "erase") {
+      eraseAt(local(e));
+      return;
+    }
     if (!d || d.kind !== "create") return;
     let p = local(e);
     if (e.shiftKey && (d.tool === "rect" || d.tool === "ellipse")) {
@@ -260,6 +322,10 @@ export const Overlay = memo(function Overlay({
 
   const onRootUp = () => {
     const d = dragRef.current;
+    if (d?.kind === "erase") {
+      setDrag(null);
+      return;
+    }
     if (!d || d.kind !== "create") return;
     setDrag(null);
     finishCreate(d);
@@ -327,7 +393,56 @@ export const Overlay = memo(function Overlay({
         });
         return;
       }
-      case "text": {
+      case "check":
+      case "cross": {
+        // The marks people make on paper, about 14pt across.
+        const S = 7 * px;
+        const [x, y] = d.start;
+        const stroke = (pts: Point[]) => pts.map(toPdf).flat();
+        const paths =
+          d.tool === "check"
+            ? [stroke([[x - S, y + 0.05 * S], [x - 0.35 * S, y + 0.8 * S], [x + S, y - 0.8 * S]])]
+            : [stroke([[x - 0.8 * S, y - 0.8 * S], [x + 0.8 * S, y + 0.8 * S]]), stroke([[x + 0.8 * S, y - 0.8 * S], [x - 0.8 * S, y + 0.8 * S]])];
+        add({ ...base, kind: "ink", paths }, () => {
+          backToSelect();
+          select(base.id);
+        });
+        return;
+      }
+      case "dot": {
+        const r = 3.5 * px;
+        const [x, y] = d.start;
+        add({ ...base, kind: "ellipse", width: 0, fill: base.color, rect: rectToPdf(matrix, [x - r, y - r, x + r, y + r]) }, () => {
+          backToSelect();
+          select(base.id);
+        });
+        return;
+      }
+      case "dash": {
+        const half = 10 * px;
+        const [x, y] = d.start;
+        const [x1, y1] = toPdf([x - half, y]);
+        const [x2, y2] = toPdf([x + half, y]);
+        add({ ...base, kind: "line", line: [x1, y1, x2, y2] }, () => {
+          backToSelect();
+          select(base.id);
+        });
+        return;
+      }
+      case "date": {
+        const text = todayText();
+        const w = (textWidth(text, base.fontSize) + 2 * (TEXT_PADDING + base.width) + 2) * px;
+        const h = textHeight(1, base.fontSize, base.width) * px;
+        const [x, y] = d.start;
+        const a: Annot = { ...base, kind: "text", text, rotation, rect: rectToPdf(matrix, [x, y - h / 2, x + w, y + h / 2]) };
+        add(a, () => {
+          backToSelect();
+          select(a.id);
+        });
+        return;
+      }
+      case "text":
+      case "fill": {
         const width = dragged ? Math.abs(d.cur[0] - d.start[0]) : 180 * px;
         const left = Math.min(d.start[0], dragged ? d.cur[0] : d.start[0]);
         const top = Math.min(d.start[1], dragged ? d.cur[1] : d.start[1]);
@@ -343,6 +458,33 @@ export const Overlay = memo(function Overlay({
         st().amend((s) => addAnnot(s, uid, a));
         st().patchDoc({ selectedAnnot: a.id }, docKey);
         useEditing.getState().set(a.id, true);
+        return;
+      }
+      case "seal": {
+        const seal = st().pendingSeal;
+        if (!seal) {
+          st().toast("先に「印鑑・画像」で印を作ってください", true);
+          st().setTool("select");
+          return;
+        }
+        const [w, h] = [seal.size[0] * px, seal.size[1] * px];
+        const [x, y] = d.start;
+        const a: Annot = {
+          ...base,
+          kind: "seal",
+          seal: seal.shape,
+          text: seal.lines.join("\n"),
+          color: seal.color,
+          width: seal.width,
+          fontSize: seal.fontSize,
+          fill: null,
+          rotation,
+          rect: rectToPdf(matrix, [x - w / 2, y - h / 2, x + w / 2, y + h / 2]),
+        };
+        add(a, () => {
+          backToSelect();
+          select(a.id);
+        });
         return;
       }
       case "image": {
@@ -523,7 +665,8 @@ export const Overlay = memo(function Overlay({
         break;
       }
       case "text":
-      case "image": {
+      case "image":
+      case "seal": {
         if (!a.rect) break;
         const r = rectToScreen(matrix, a.rect);
         const turn = screenTurn(rotation, a.rotation);
@@ -541,6 +684,12 @@ export const Overlay = memo(function Overlay({
           boxes.push(
             <div key={a.id} {...events} className={`absolute ${hit}`} style={style}>
               {a.image !== null && <AnnotImage id={a.image} />}
+            </div>,
+          );
+        } else if (a.kind === "seal") {
+          boxes.push(
+            <div key={a.id} {...events} className={`absolute ${hit}`} style={style}>
+              <SealView a={a} w={rw} h={rh} />
             </div>,
           );
         } else {
@@ -684,7 +833,7 @@ export const Overlay = memo(function Overlay({
       className="absolute inset-0"
       style={{
         pointerEvents: drawing ? "auto" : "none",
-        cursor: drawing ? (tool === "text" ? "text" : "crosshair") : undefined,
+        cursor: drawing ? (TYPING.includes(tool) ? "text" : tool === "eraser" ? "cell" : "crosshair") : undefined,
         zIndex: 3,
       }}
       onPointerDown={onRootDown}
@@ -701,6 +850,30 @@ export const Overlay = memo(function Overlay({
     </div>
   );
 });
+
+/** A seal as lines and words (the same layout the file gets, lib/seal.ts). */
+function SealView({ a, w, h }: { a: Annot; w: number; h: number }) {
+  const shape = a.seal === "box" ? "box" : "round";
+  const l = sealLayout(shape, w, h, a.fontSize, a.width, a.text.split("\n").map((t) => t.trim()));
+  const i = a.width / 2;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" className="pointer-events-none block" style={{ fontFamily: textFontFamily() }}>
+      {shape === "round" ? (
+        <ellipse cx={w / 2} cy={h / 2} rx={w / 2 - i} ry={h / 2 - i} fill="none" stroke={a.color} strokeWidth={a.width} />
+      ) : (
+        <rect x={i} y={i} width={w - a.width} height={h - a.width} fill="none" stroke={a.color} strokeWidth={a.width} />
+      )}
+      {l.dividers.map(([y, x1, x2], k) => (
+        <line key={k} x1={x1} y1={h - y} x2={x2} y2={h - y} stroke={a.color} strokeWidth={a.width} />
+      ))}
+      {l.lines.map((line, k) => (
+        <text key={k} x={line.x} y={h - line.y} fontSize={line.size} fill={a.color} dominantBaseline="central" style={{ fontKerning: "none" }}>
+          {line.text}
+        </text>
+      ))}
+    </svg>
+  );
+}
 
 function AnnotImage({ id }: { id: number }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -760,7 +933,7 @@ function TextBox({
     const d = activeDoc(st());
     const now = d && Object.values(d.annots).flat().find((x) => x.id === a.id);
     if (now && !now.text.trim()) st().amend((x) => removeAnnot(x, a.id));
-    if (st().tool === "text" && !st().sticky) st().setTool("select");
+    if (TYPING.includes(st().tool) && !st().sticky) st().setTool("select");
   }, [editing, a.id]);
 
   const text: React.CSSProperties = {

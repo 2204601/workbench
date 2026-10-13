@@ -46,10 +46,9 @@ export function setPasswordPrompt(f: typeof askPassword) {
   askPassword = f;
 }
 
-/** Loads an opened file (Rust has read and checked it) into pdf.js. */
-export async function loadSource(opened: OpenedPdf): Promise<Source> {
-  const data = await api.pdfViewBytes(opened.id);
-  const task = getDocument({
+/** A loading task for `data`, set up the way every document here is. */
+export function loadBytes(data: Uint8Array): PDFDocumentLoadingTask {
+  return getDocument({
     data,
     cMapUrl: `${assets}cmaps/`,
     cMapPacked: true,
@@ -60,6 +59,12 @@ export async function loadSource(opened: OpenedPdf): Promise<Source> {
     useWasm: false,
     enableXfa: false,
   });
+}
+
+/** Loads an opened file (Rust has read and checked it) into pdf.js. */
+export async function loadSource(opened: OpenedPdf): Promise<Source> {
+  const data = await api.pdfViewBytes(opened.id);
+  const task = loadBytes(data);
   task.onPassword = (update: (password: string) => void, reason: number) => {
     void askPassword(opened.name, reason === PasswordResponses.INCORRECT_PASSWORD).then((p) => {
       if (p === null) void task.destroy();

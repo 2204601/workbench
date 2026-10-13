@@ -24,7 +24,15 @@ pub struct Style {
     pub font_size: Option<f64>,
     pub rotation: u16,
     pub width: Option<f64>,
+    /// A seal's shape ("round" or "box"); see `Annot::seal`.
+    pub seal: Option<String>,
 }
+
+/// The name under /Name of a seal the app drew (not a standard stamp name).
+pub const SEAL_NAME: &str = "PDFOneSeal";
+
+/// Room between a seal's frame and its words, as a share of its size.
+pub const SEAL_PADDING: f64 = 0.08;
 
 /// Line height of text boxes, as a multiple of the font size. The overlay
 /// (src/components/Overlay.tsx) uses the same.
@@ -331,6 +339,55 @@ impl Writer<'_> {
                 let ap = self.form([0.0, 0.0, w, h], None, Self::gs_resources(opacity, false), c);
                 ("Text", r, ap)
             }
+            AnnotKind::Seal => {
+                let r = valid_rect(a.rect)?;
+                let rot = a.rotation % 360;
+                let (vw, vh) =
+                    if rot == 90 || rot == 270 { (r[3] - r[1], r[2] - r[0]) } else { (r[2] - r[0], r[3] - r[1]) };
+                let size = if a.font_size.is_finite() { a.font_size.clamp(4.0, 200.0) } else { 12.0 };
+                let round = a.seal.as_deref() != Some("box");
+                let font = self.font.font_ref(self.doc);
+                let lines: Vec<&str> = a.text.lines().map(str::trim).collect();
+                let layout = seal_layout(round, vw, vh, size, width, &lines, |t, s| self.font.width(t, s));
+                let mut c = Content::new();
+                c.gs("G0").stroke_rgb(color).fill_rgb(color).op(&[width.max(0.1)], "w");
+                let i = width / 2.0;
+                if round {
+                    c.ellipse([i, i, vw - i, vh - i]).raw("S");
+                } else {
+                    c.rect(i, i, vw - width, vh - width).raw("S");
+                }
+                for (y, x1, x2) in &layout.dividers {
+                    c.move_to(*x1, *y).line_to(*x2, *y).raw("S");
+                }
+                let (asc, desc) = self.font.vertical();
+                c.raw("BT");
+                for line in &layout.lines {
+                    if line.text.is_empty() {
+                        continue;
+                    }
+                    // Centred on the band: the baseline sits so that the
+                    // glyphs' middle (between ascent and descent) is at `y`.
+                    let baseline = line.y - (asc + desc) * line.size / 2.0;
+                    c.raw(&format!("/{RESOURCE_NAME} {} Tf", super::content::num(line.size)));
+                    c.op(&[1.0, 0.0, 0.0, 1.0, line.x, baseline], "Tm");
+                    let s = self.font.encode(line.text);
+                    c.raw(&format!("{s} Tj"));
+                }
+                c.raw("ET");
+                let mut res = Self::gs_resources(opacity, false);
+                res.set("Font", dictionary! { RESOURCE_NAME => font });
+                let ap = self.form([0.0, 0.0, vw, vh], Some(rotation_matrix(rot)), res, c);
+                d.set("Contents", text_string(&a.text));
+                d.set("Name", SEAL_NAME);
+                if rot != 0 {
+                    d.set("Rotate", rot as i64);
+                }
+                style.font_size = Some(size);
+                style.rotation = rot;
+                style.seal = Some(if round { "round" } else { "box" }.into());
+                ("Stamp", r, ap)
+            }
             AnnotKind::Image => {
                 let r = valid_rect(a.rect)?;
                 let id = a.image.ok_or("画像がありません")?;
@@ -365,6 +422,80 @@ impl Writer<'_> {
 
 fn darker(c: Rgb) -> Rgb {
     c.map(|v| v * 0.6)
+}
+
+/// A line of a seal, placed: its left edge and the middle of its band.
+pub struct SealLine<'a> {
+    pub text: &'a str,
+    pub size: f64,
+    pub x: f64,
+    pub y: f64,
+}
+
+pub struct SealLayout<'a> {
+    pub lines: Vec<SealLine<'a>>,
+    /// Horizontal lines across the seal: y, from x1 to x2.
+    pub dividers: Vec<(f64, f64, f64)>,
+}
+
+/// Where a seal's words go, in its box of `w` × `h` (the same rule as
+/// src/lib/seal.ts, so the screen matches the file). A round seal has
+/// three bands, the middle one the date's; a box has its lines stacked.
+/// A line wider than its band is shrunk to fit.
+pub fn seal_layout<'a>(
+    round: bool,
+    w: f64,
+    h: f64,
+    size: f64,
+    border: f64,
+    lines: &[&'a str],
+    measure: impl Fn(&str, f64) -> f64,
+) -> SealLayout<'a> {
+    let pad = w.min(h) * SEAL_PADDING + border;
+    let fit = |text: &str, max: f64| -> f64 {
+        let at = measure(text, size);
+        if at <= max || at <= 0.0 {
+            size
+        } else {
+            (size * max / at).max(4.0)
+        }
+    };
+    let mut out = SealLayout { lines: Vec::new(), dividers: Vec::new() };
+    if round {
+        let (cx, cy) = (w / 2.0, h / 2.0);
+        let (rx, ry) = (w / 2.0 - border / 2.0, h / 2.0 - border / 2.0);
+        // The middle band's height is the date's line, with some air.
+        let band = size * LINE_HEIGHT * 1.1;
+        let ys = [cy + band / 2.0, cy - band / 2.0];
+        // Chord of the ellipse at height y: how wide the seal is there.
+        let chord = |y: f64| -> f64 {
+            let t = ((y - cy) / ry).clamp(-1.0, 1.0);
+            rx * (1.0 - t * t).sqrt()
+        };
+        for y in ys {
+            let half = chord(y);
+            out.dividers.push((y, cx - half, cx + half));
+        }
+        let centres = [cy + (band / 2.0 + ry) / 2.0, cy, cy - (band / 2.0 + ry) / 2.0];
+        for (i, text) in lines.iter().take(3).enumerate() {
+            let y = centres[i];
+            let max = (chord(y) * 2.0 - 2.0 * pad).max(1.0);
+            let s = fit(text, max);
+            let x = cx - measure(text, s) / 2.0;
+            out.lines.push(SealLine { text, size: s, x, y });
+        }
+    } else {
+        let n = lines.len().max(1) as f64;
+        let lh = size * LINE_HEIGHT;
+        let top = h / 2.0 + (n - 1.0) * lh / 2.0;
+        let max = (w - 2.0 * pad).max(1.0);
+        for (i, text) in lines.iter().enumerate() {
+            let s = fit(text, max);
+            let x = w / 2.0 - measure(text, s) / 2.0;
+            out.lines.push(SealLine { text, size: s, x, y: top - i as f64 * lh });
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -427,6 +558,15 @@ mod tests {
                 ..base.clone()
             },
             Annot { kind: AnnotKind::Image, rect: Some([10.0, 10.0, 50.0, 50.0]), image: Some(img), ..base.clone() },
+            Annot {
+                kind: AnnotKind::Seal,
+                rect: Some([300.0, 300.0, 368.0, 368.0]),
+                text: "営業部\n2026.10.13\n鈴木".into(),
+                seal: Some("round".into()),
+                font_size: 9.0,
+                width: 1.5,
+                ..base.clone()
+            },
         ];
         let mut w = Writer { doc: &mut doc, font: &mut font, images: &images };
         let ids: Vec<ObjectId> = cases.iter().map(|a| w.write(page, a).unwrap()).collect();
@@ -440,8 +580,15 @@ mod tests {
             .collect();
         assert_eq!(
             subtypes,
-            ["Highlight", "Underline", "Ink", "Square", "Circle", "Line", "FreeText", "Text", "Stamp"]
+            ["Highlight", "Underline", "Ink", "Square", "Circle", "Line", "FreeText", "Text", "Stamp", "Stamp"]
         );
+        // The seal: a frame, two dividers and three words in the embedded font.
+        let seal = ap_content(&doc, ids[9]);
+        assert_eq!(seal.matches(" Tj").count(), 3, "{seal}");
+        assert_eq!(seal.lines().filter(|l| *l == "S").count(), 3, "{seal}");
+        let sd = doc.get_dictionary(ids[9]).unwrap();
+        assert_eq!(sd.get(b"Name").unwrap().as_name().unwrap(), SEAL_NAME.as_bytes());
+        assert_eq!(crate::pdf::get_text(sd, b"Contents"), "営業部\n2026.10.13\n鈴木");
         assert!(ap_content(&doc, ids[0]).contains(" f"));
         assert!(ap_content(&doc, ids[3]).trim_end().ends_with('B'));
         // The text box's two lines, in the embedded font.
@@ -466,5 +613,26 @@ mod tests {
         let a =
             Annot { kind: AnnotKind::Image, rect: Some([0.0, 0.0, 5.0, 5.0]), image: Some(9), ..Default::default() };
         assert!(w.write(page, &a).is_err());
+    }
+
+    #[test]
+    fn seal_words_fit_their_bands() {
+        let measure = |t: &str, s: f64| t.chars().count() as f64 * s;
+        let l = seal_layout(true, 68.0, 68.0, 9.0, 1.5, &["営業部", "2026.10.13", "鈴木"], measure);
+        assert_eq!(l.lines.len(), 3);
+        assert_eq!(l.dividers.len(), 2);
+        // The date is as wide as the middle band allows, no wider.
+        let date = &l.lines[1];
+        assert!(date.size < 9.0 && date.size >= 4.0, "{}", date.size);
+        assert!(date.x > 0.0 && date.x + measure(date.text, date.size) < 68.0);
+        // Centred: the middle line sits on the middle of the box; the others
+        // halfway between their divider and the rim.
+        assert!((date.y - 34.0).abs() < 0.01);
+        assert!(l.lines[0].y > l.dividers[0].0 && l.lines[0].y < 68.0, "{}", l.lines[0].y);
+        assert!(l.lines[2].y < l.dividers[1].0 && l.lines[2].y > 0.0, "{}", l.lines[2].y);
+        let b = seal_layout(false, 80.0, 24.0, 14.0, 1.0, &["承認済み"], measure);
+        assert_eq!(b.lines.len(), 1);
+        assert!(b.dividers.is_empty());
+        assert!((b.lines[0].y - 12.0).abs() < 0.01);
     }
 }

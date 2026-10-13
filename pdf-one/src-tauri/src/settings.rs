@@ -15,11 +15,13 @@ pub struct AppSettings {
     pub author: String,
     /// Files opened lately, newest first (the start screen).
     pub recent: Vec<String>,
+    /// First-run tips already shown (src/components/Tips.tsx).
+    pub seen_tips: Vec<String>,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
-        Self { auto_update: true, author: String::new(), recent: Vec::new() }
+        Self { auto_update: true, author: String::new(), recent: Vec::new(), seen_tips: Vec::new() }
     }
 }
 

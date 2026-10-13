@@ -24,7 +24,7 @@ async function dropImages(paths: string[], x: number, y: number) {
     return;
   }
   const r = el.getBoundingClientRect();
-  const { view, rotation } = pageBox(page);
+  const { view, rotation } = pageBox(page, d.viewRotate);
   const px = d.scale * CSS_PER_PT;
   const m = viewportTransform(view, px, rotation);
   let off = 0;
@@ -55,6 +55,7 @@ async function dropImages(paths: string[], x: number, y: number) {
           fontSize: 12,
           rotation,
           image: img.id,
+          seal: null,
           contents: "",
           author: st().author,
           modified: "",

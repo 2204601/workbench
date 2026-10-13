@@ -19,6 +19,7 @@ export const KIND_LABEL: Record<AnnotKind, string> = {
   text: "文字",
   note: "付箋",
   image: "印鑑・画像",
+  seal: "印",
 };
 
 const BACK = "終わるには「選択」を押すか Esc";
@@ -55,6 +56,22 @@ function toolHint(tool: Tool, sticky: boolean): string {
       return `いま：矢印。ドラッグで引きます。先が矢になります。${again}`;
     case "image":
       return `いま：印鑑・画像。置きたい場所をクリックします（ドラッグで大きさも決められます）。${again}`;
+    case "fill":
+      return `いま：記入。書き入れたい場所をクリックして入力します。${sticky ? `続けて書けます。${BACK}` : "入力が終わると「選択」に戻ります"}`;
+    case "check":
+      return `いま：チェック。付けたい場所をクリックします。${again}`;
+    case "cross":
+      return `いま：バツ。付けたい場所をクリックします。${again}`;
+    case "dot":
+      return `いま：黒丸。付けたい場所をクリックします。${again}`;
+    case "dash":
+      return `いま：横線。引きたい場所をクリックします。${again}`;
+    case "date":
+      return `いま：日付。置きたい場所をクリックすると今日の日付が入ります（あとで直せます）。${again}`;
+    case "eraser":
+      return `いま：消しゴム。ペンで書いた線の上をなぞると消えます。${BACK}`;
+    case "seal":
+      return `いま：印。押したい場所をクリックします。${again}`;
   }
 }
 

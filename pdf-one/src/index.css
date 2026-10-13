@@ -182,6 +182,26 @@ textarea {
   -webkit-user-select: text;
 }
 
+/* Printing (src/lib/print.ts): only the sheets, on white, one per page. */
+#print-root {
+  display: none;
+}
+@media print {
+  #root,
+  [data-modal] {
+    display: none !important;
+  }
+  #print-root {
+    display: block;
+  }
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+}
+
 /* Keyboard focus is shown; a click's isn't (Platform UI). */
 :focus-visible {
   outline: 2px solid var(--accent);

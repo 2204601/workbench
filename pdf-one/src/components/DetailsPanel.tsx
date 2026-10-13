@@ -31,6 +31,7 @@ const CONTROLS: Record<AnnotKind, { width?: [number, number]; fill?: boolean; si
   text: { width: [0, 4], fill: true, size: true },
   note: {},
   image: {},
+  seal: { width: [0.5, 4], size: true },
 };
 
 const TOOL_KIND: Partial<Record<Tool, AnnotKind>> = {
@@ -45,10 +46,17 @@ const TOOL_KIND: Partial<Record<Tool, AnnotKind>> = {
   line: "line",
   arrow: "arrow",
   image: "image",
+  fill: "text",
+  date: "text",
+  check: "ink",
+  cross: "ink",
+  dot: "ellipse",
+  dash: "line",
+  seal: "seal",
 };
 
 /** Tools that go back to 選択 after one use, unless 続けて置く is on (UX §6). */
-const ONE_SHOT: Tool[] = ["text", "rect", "ellipse", "line", "arrow", "image"];
+const ONE_SHOT: Tool[] = ["text", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "seal"];
 
 /**
  * 詳細 (docs/UX.md §7), on the right: the selected annotation's look and
@@ -67,6 +75,13 @@ export function DetailsPanel({ d }: { d: Doc }) {
   } else if (sel) {
     title = `選んだもの：${KIND_LABEL[sel.annot.kind]}`;
     body = <AnnotControls sel={sel} tool={tool} />;
+  } else if (tool === "eraser") {
+    title = "消しゴム";
+    body = (
+      <p className="rounded-md bg-raised p-2.5 text-xs leading-relaxed text-dim">
+        ペンで書いた線の上をなぞると、その線が消えます。マーカーや文字は、クリックで選んで Delete で消します。
+      </p>
+    );
   } else if (toolKind) {
     title = `これから置くもの：${KIND_LABEL[toolKind]}`;
     body = <AnnotControls sel={null} tool={tool} />;
@@ -104,7 +119,9 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
   const sticky = useStore((s) => s.sticky);
   const sliding = useRef(false);
   const kind: AnnotKind = sel?.annot.kind ?? TOOL_KIND[tool]!;
-  const c = CONTROLS[kind];
+  // The marks and the date are placed as they are; only their colour varies.
+  const simple = !sel && (tool === "check" || tool === "cross" || tool === "dot" || tool === "dash");
+  const c = simple ? { marker: false } : CONTROLS[kind];
   const cur: ToolStyle = sel
     ? { color: sel.annot.color, width: sel.annot.width, opacity: sel.annot.opacity, fill: sel.annot.fill, fontSize: sel.annot.fontSize }
     : styles[tool];
@@ -249,6 +266,7 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
           </span>
         </label>
       )}
+      {sel && sel.annot.kind === "seal" && <SealWords a={sel.annot} />}
       {sel && sel.annot.kind !== "text" && (
         <Field label="コメント">
           <textarea
@@ -281,6 +299,40 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
         </div>
       )}
     </>
+  );
+}
+
+/** The words on a seal: three for a date seal, one for a box. */
+function SealWords({ a }: { a: Annot }) {
+  const lines = a.text.split("\n");
+  const round = a.seal !== "box";
+  const labels = round ? ["上の文字", "日付", "下の文字"] : ["言葉"];
+  const touched = useRef(false);
+  const set = (i: number, value: string) => {
+    const next = [...lines];
+    while (next.length < labels.length) next.push("");
+    next[i] = value.replace(/\n/g, " ");
+    if (!touched.current) st().checkpoint();
+    touched.current = true;
+    st().amend((s) => updateAnnot(s, a.id, { text: next.join("\n") }));
+  };
+  return (
+    <Field label="印の文字">
+      <div className="flex flex-col gap-1.5">
+        {labels.map((label, i) => (
+          <input
+            key={label}
+            value={lines[i] ?? ""}
+            placeholder={label}
+            aria-label={label}
+            onFocus={() => (touched.current = false)}
+            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) => set(i, e.target.value)}
+            className="h-8 rounded-md border border-line bg-bg px-2 text-sm outline-none focus:border-accent"
+          />
+        ))}
+      </div>
+    </Field>
   );
 }
 

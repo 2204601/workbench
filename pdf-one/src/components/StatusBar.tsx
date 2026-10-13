@@ -1,4 +1,4 @@
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { runCommand } from "../lib/commands";
 import { percent } from "../lib/format";
@@ -94,6 +94,15 @@ export function StatusBar({ d }: { d: Doc }) {
           <ZoomBox d={d} />
           <button onClick={() => runCommand("view.zoomIn")} className="rounded p-0.5 hover:bg-hover" aria-label="拡大" title="拡大">
             <Plus size={14} />
+          </button>
+          <div className="h-4 w-px bg-line" />
+          <button
+            onClick={() => runCommand("view.rotateRight")}
+            className="rounded p-0.5 hover:bg-hover"
+            aria-label="右に回転して見る"
+            title="右に回転して見る（ファイルは変わりません）"
+          >
+            <RotateCw size={14} />
           </button>
         </>
       )}

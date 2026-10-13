@@ -1,4 +1,4 @@
-import { Clock, FileText, FolderOpen } from "lucide-react";
+import { CircleHelp, Clock, FileText, FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { baseName, openPaths } from "../lib/actions";
 import { api } from "../lib/api";
@@ -53,7 +53,13 @@ export function StartScreen() {
             </div>
           </section>
         )}
-        <div className="text-center text-xs text-dim">PDF One {appVersion()}</div>
+        <div className="flex items-center justify-center gap-4 text-xs text-dim">
+          <button onClick={() => runCommand("help.guide")} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-hover hover:text-fg">
+            <CircleHelp size={13} />
+            使い方
+          </button>
+          <span>PDF One {appVersion()}</span>
+        </div>
       </div>
     </div>
   );

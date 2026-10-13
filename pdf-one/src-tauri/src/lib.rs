@@ -65,13 +65,18 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
         pdf_view_bytes,
         close_pdf,
         save_pdf,
+        compose_pdf,
         add_image,
         add_image_bytes,
         image_bytes,
         list_stamps,
         add_stamp,
+        add_stamp_bytes,
         remove_stamp,
         use_stamp,
+        write_draft,
+        list_drafts,
+        remove_draft,
     ])
 }
 

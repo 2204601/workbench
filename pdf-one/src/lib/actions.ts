@@ -9,8 +9,10 @@ import { isMac } from "./keys";
 import { warn } from "./log";
 import { notifyIfAway } from "./osNotify";
 import { getSource, loadSource, releaseSource, type Source } from "./pdfjs";
+import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { TEXT_PADDING, wrapText } from "./text";
 import { askSaveChoice } from "../components/Dialogs";
+import { dropDraft } from "./drafts";
 import { activeDoc, newUid, useStore, type Doc, type PageItem } from "../store";
 
 const st = () => useStore.getState();
@@ -38,7 +40,7 @@ function pagesOf(src: Source, opened: OpenedPdf): Snap {
 }
 
 /** Opens a file in Rust and pdf.js. On failure, nothing stays open. */
-async function openSource(path: string): Promise<{ src: Source; opened: OpenedPdf }> {
+export async function openSource(path: string): Promise<{ src: Source; opened: OpenedPdf }> {
   const opened = await api.openPdf(path);
   try {
     return { src: await loadSource(opened), opened };
@@ -70,6 +72,7 @@ export async function openPaths(paths: string[]) {
         openedPath: path,
         size: opened.size,
         savedAt: null,
+        draftId: null,
         sources: [src.id],
         ...snap,
         past: [],
@@ -85,16 +88,49 @@ export async function openPaths(paths: string[]) {
         selectedAnnot: null,
         selectedPages: [],
         scrollTo: null,
+        viewRotate: 0,
       });
       notifyIfAway(started, "PDF を開きました", opened.name);
       if (opened.readOnly) st().notify({ title: "表示だけできます", detail: opened.readOnly, kind: "info" });
       else if (opened.signed)
         st().notify({ title: "電子署名のある PDF です", detail: "保存すると、署名は無効になります。", kind: "info" });
+      if (!opened.readOnly) void describeOnOpen(src);
     } catch (e) {
       st().notify({ title: `${baseName(path)} を開けませんでした`, detail: String((e as Error)?.message ?? e), kind: "error" });
     } finally {
       st().setBusy(null);
     }
+  }
+}
+
+/**
+ * What the file is like, said as it opens (docs/UX.md §8): a scan with no
+ * text, or a form with fields. Looks at the first pages only.
+ */
+async function describeOnOpen(src: Source) {
+  try {
+    const n = Math.min(3, src.pdf.numPages);
+    let text = false;
+    let fields = false;
+    for (let i = 1; i <= n && !(text && fields); i++) {
+      const page = await src.pdf.getPage(i);
+      if (!text) {
+        const content = await page.getTextContent();
+        text = content.items.some((it) => (it as TextItem).str?.trim().length > 0);
+      }
+      if (!fields) fields = (await page.getAnnotations()).some((a: { subtype?: string }) => a.subtype === "Widget");
+    }
+    if (!getSource(src.id)) return;
+    if (!text) {
+      st().notify({
+        title: "この PDF は画像だけです",
+        detail: "文字の検索やコピーはできません。マーカーは、引きたいところをドラッグで囲んで引けます。",
+        duration: 8000,
+      });
+    }
+    if (fields) st().notify({ title: "入力欄があります", detail: "入力欄をクリックすると、そのまま入力できます。", duration: 6000 });
+  } catch (e) {
+    warn("describe", e);
   }
 }
 
@@ -121,7 +157,7 @@ export async function openRequested() {
 // ---------------------------------------------------------------- saving
 
 /** The file a text box's lines and the forms' values are written from. */
-function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
+export function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
   return d.pages
     .filter((p) => !uids || uids.has(p.uid))
     .map((p) => ({
@@ -138,7 +174,7 @@ function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
 }
 
 /** Values typed into form fields (pdf.js keeps them per document). */
-function formValues(d: Doc): FormEntry[] {
+export function formValues(d: Doc): FormEntry[] {
   const out: FormEntry[] = [];
   for (const id of d.sources) {
     const s = getSource(id);
@@ -199,6 +235,7 @@ export async function save(as = false, key?: string): Promise<boolean> {
   try {
     const r = await api.savePdf({ path, pages: buildPages(d), forms: formValues(d) });
     st().patchDoc({ savePath: r.path, name: baseName(r.path), dirty: false, signed: false, savedAt: Date.now() }, d.key);
+    void dropDraft(d.key);
     st().notify({
       title: "保存しました",
       detail: r.backup ? `${r.path}\n上書きする前の版はバックアップに残しました。` : r.path,
@@ -299,7 +336,9 @@ async function settle(d: Doc): Promise<boolean> {
     buttons: { yes: SAVE, no: DONT, cancel: CANCEL },
   });
   if (r === SAVE || r === "Yes") return save(false, d.key);
-  return r === DONT || r === "No";
+  const discard = r === DONT || r === "No";
+  if (discard) void dropDraft(d.key);
+  return discard;
 }
 
 /** Closes a tab, letting go of the files only it used. */

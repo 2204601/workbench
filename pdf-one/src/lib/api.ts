@@ -10,6 +10,8 @@ export interface AppSettings {
   author: string;
   /** Newest first. */
   recent: string[];
+  /** First-run tips already shown (src/components/Tips.tsx). */
+  seenTips: string[];
 }
 
 export type AnnotKind =
@@ -23,7 +25,8 @@ export type AnnotKind =
   | "arrow"
   | "text"
   | "note"
-  | "image";
+  | "image"
+  | "seal";
 
 /**
  * An annotation (src-tauri/src/pdf/mod.rs `Annot`). Coordinates are in the
@@ -54,6 +57,8 @@ export interface Annot {
   rotation: number;
   /** A picture in Rust's image store. */
   image: number | null;
+  /** A seal the app draws: "round" (a date seal, three lines) or "box" (a word). Its words are `text`, one per line. */
+  seal: "round" | "box" | null;
   /** The comment. */
   contents: string;
   author: string;
@@ -118,6 +123,19 @@ export interface Stamp {
   name: string;
 }
 
+/** A tab's draft kept while editing (src-tauri/src/files.rs `Draft`). */
+export interface Draft {
+  id: string;
+  /** The file the tab was opened from. */
+  path: string;
+  /** Milliseconds since 1970. */
+  savedAt: number;
+  /** The tab's state as src/lib/drafts.ts wrote it. */
+  json: string;
+  /** Image store id → the picture's file in the draft's folder. */
+  images: [number, string][];
+}
+
 const bytes = (r: ArrayBuffer | Uint8Array | number[]) =>
   r instanceof Uint8Array ? r : r instanceof ArrayBuffer ? new Uint8Array(r) : new Uint8Array(r);
 
@@ -137,12 +155,20 @@ export const api = {
   pdfViewBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("pdf_view_bytes", { id })),
   closePdf: (id: number) => invoke<void>("close_pdf", { id }),
   savePdf: (request: { path: string; pages: PageSpec[]; forms: FormEntry[] }) => invoke<Saved>("save_pdf", { request }),
+  /** The file as it would be saved, as bytes (printing). */
+  composePdf: async (request: { pages: PageSpec[]; forms: FormEntry[] }) => bytes(await invoke<ArrayBuffer>("compose_pdf", { request })),
 
   addImage: (path: string) => invoke<ImageInfo>("add_image", { path }),
   addImageBytes: (data: Uint8Array) => invoke<ImageInfo>("add_image_bytes", data),
   imageBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("image_bytes", { id })),
   listStamps: () => invoke<Stamp[]>("list_stamps"),
   addStamp: (path: string) => invoke<Stamp>("add_stamp", { path }),
+  /** A picture drawn in the app (a signature), as PNG bytes, into the library. */
+  addStampBytes: (data: Uint8Array) => invoke<Stamp>("add_stamp_bytes", data),
+
+  writeDraft: (request: { path: string; json: string; images: number[] }) => invoke<string>("write_draft", { request }),
+  listDrafts: () => invoke<Draft[]>("list_drafts"),
+  removeDraft: (id: string) => invoke<void>("remove_draft", { id }),
   removeStamp: (id: string) => invoke<void>("remove_stamp", { id }),
   useStamp: (id: string) => invoke<ImageInfo>("use_stamp", { id }),
 };

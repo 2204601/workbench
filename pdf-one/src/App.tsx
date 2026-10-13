@@ -5,23 +5,30 @@ import { useEffect } from "react";
 import { ContextMenu } from "./components/ContextMenu";
 import { DetailsPanel } from "./components/DetailsPanel";
 import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dialogs";
+import { PrintDialog } from "./components/PrintDialog";
+import { checkDrafts, RecoverDialog } from "./components/RecoverDialog";
 import { DropOverlay, useFileDrop } from "./components/DropZone";
+import { HelpDialog } from "./components/HelpDialog";
 import { Organizer } from "./components/Organizer";
 import { Ribbon } from "./components/Ribbon";
+import { SealDialog } from "./components/SealDialog";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Sidebar } from "./components/Sidebar";
+import { SignatureDialog } from "./components/SignatureDialog";
 import { StampDialog } from "./components/StampDialog";
 import { StartScreen } from "./components/StartScreen";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
+import { Tips } from "./components/Tips";
 import { Toasts } from "./components/Toasts";
 import { Viewer } from "./components/Viewer";
 import { openRequested, settleAll } from "./lib/actions";
 import { api } from "./lib/api";
 import { onCopy, onPaste } from "./lib/clipboard";
 import { runKey } from "./lib/commands";
+import { startDrafts } from "./lib/drafts";
 import { warn } from "./lib/log";
 import { installMenuBar } from "./lib/menuBar";
 import { setTextFont } from "./lib/text";
@@ -53,6 +60,8 @@ export default function App() {
     api.textFontFamily().then(setTextFont, () => setTextFont(null));
     const stopMenu = installMenuBar();
     const stopUpdate = scheduleUpdateCheck();
+    const stopDrafts = startDrafts();
+    void checkDrafts();
     const onKey = (e: KeyboardEvent) => void runKey(e);
     window.addEventListener("keydown", onKey);
     document.addEventListener("copy", onCopy);
@@ -85,6 +94,7 @@ export default function App() {
       gone = true;
       stopMenu();
       stopUpdate();
+      stopDrafts();
       unlisten?.();
       unclose?.();
       window.removeEventListener("keydown", onKey);
@@ -119,6 +129,7 @@ export default function App() {
             <div className="relative flex min-w-0 flex-1">
               {organizer ? <Organizer d={d} /> : <Viewer key={d.key} d={d} />}
               {!organizer && <SearchBar />}
+              {!organizer && <Tips />}
             </div>
             {details && !organizer && <DetailsPanel d={d} />}
           </div>
@@ -132,6 +143,11 @@ export default function App() {
       {dialog === "shortcuts" && <ShortcutHelp />}
       {dialog === "stamps" && <StampDialog />}
       {dialog === "split" && <SplitDialog />}
+      {dialog === "signature" && <SignatureDialog />}
+      {dialog === "seal" && <SealDialog />}
+      {dialog === "recover" && <RecoverDialog />}
+      {dialog === "print" && <PrintDialog />}
+      {dialog === "help" && <HelpDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />
