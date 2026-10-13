@@ -66,6 +66,16 @@ export interface Exporting {
 
 export type LeftTab = "media" | "text" | "stamp" | "transition";
 
+/** What the preview shows: the edit, or one media file to pick parts of. */
+export type View = "timeline" | "source";
+
+/** A media file open in the source view, with the part marked in it (seconds of the file). */
+export interface Source {
+  mediaId: string;
+  in: number | null;
+  out: number | null;
+}
+
 /** A media file dragged from the media list toward the timeline. */
 export interface MediaDrag {
   mediaId: string;
@@ -100,6 +110,11 @@ interface State {
   media: Record<string, MediaInfo>;
   mediaDrag: MediaDrag | null;
   exporting: Exporting | null;
+  view: View;
+  source: Source | null;
+  /** The source view's playhead (seconds of the file) and whether it plays. */
+  sourceTime: number;
+  sourcePlaying: boolean;
 
   /** An edit: undoable. */
   commit: (next: Project) => void;
@@ -121,6 +136,10 @@ interface State {
   setMedia: (id: string, info: MediaInfo) => void;
   setMediaDrag: (d: MediaDrag | null) => void;
   setExporting: (e: Exporting | null) => void;
+  setView: (v: View) => void;
+  setSource: (s: Source | null) => void;
+  setSourceTime: (t: number) => void;
+  setSourcePlaying: (p: boolean) => void;
 
   setUpdating: (u: Updating | null) => void;
   openDialog: (d: Dialog) => void;
@@ -163,6 +182,10 @@ export const useStore = create<State>()((set, get) => {
     media: {},
     mediaDrag: null,
     exporting: null,
+    view: "timeline",
+    source: null,
+    sourceTime: 0,
+    sourcePlaying: false,
 
     commit: (next) => {
       const { project, past } = get();
@@ -188,7 +211,21 @@ export const useStore = create<State>()((set, get) => {
       if (!next) return;
       set({ project: next, past: [...past, project], future: future.slice(1), selection: keepSelection(get().selection, next) });
     },
-    load: (p, path) => set({ project: p, saved: p, path, past: [], future: [], selection: null, time: 0, playing: false }),
+    load: (p, path) =>
+      set({
+        project: p,
+        saved: p,
+        path,
+        past: [],
+        future: [],
+        selection: null,
+        time: 0,
+        playing: false,
+        view: "timeline",
+        source: null,
+        sourceTime: 0,
+        sourcePlaying: false,
+      }),
     markSaved: (path) => set({ saved: get().project, path }),
 
     select: (selection) => set({ selection }),
@@ -199,6 +236,10 @@ export const useStore = create<State>()((set, get) => {
     setMedia: (id, info) => set({ media: { ...get().media, [id]: info } }),
     setMediaDrag: (mediaDrag) => set({ mediaDrag }),
     setExporting: (exporting) => set({ exporting }),
+    setView: (view) => set({ view }),
+    setSource: (source) => set({ source }),
+    setSourceTime: (sourceTime) => set({ sourceTime: Math.max(0, sourceTime) }),
+    setSourcePlaying: (sourcePlaying) => set({ sourcePlaying }),
 
     setUpdating: (updating) => set({ updating }),
     openDialog: (dialog) => set({ dialog }),

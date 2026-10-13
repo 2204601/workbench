@@ -470,9 +470,13 @@ function ProjectInfo() {
       <div className="text-[11px] leading-relaxed text-dim">
         <p className="mb-2 font-medium text-fg">使い方</p>
         <ol className="list-decimal space-y-1.5 pl-4">
-          <li>動画や写真を追加すると、タイムラインに順に並びます</li>
+          <li>動画や写真を追加すると、左の「素材」に並びます</li>
           <li>
-            再生位置で <b className="text-fg">S</b> を押すと分割。いらない部分を選んで <b className="text-fg">Delete</b>
+            動画を押すと素材の表示で開きます。使う部分の初めで <b className="text-fg">I</b>、終わりで <b className="text-fg">O</b>、「再生位置に入れる」（
+            <b className="text-fg">,</b>）でタイムラインへ。1 本の動画から何か所でも
+          </li>
+          <li>
+            タイムラインでも、再生位置で <b className="text-fg">S</b> を押すと分割。いらない部分を選んで <b className="text-fg">Delete</b>
           </li>
           <li>クリップの端をドラッグして切り詰め、ドラッグで並べ替え</li>
           <li>つなぎ目の ◇ を押して切り替えを選ぶ</li>

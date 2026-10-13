@@ -122,6 +122,14 @@ async function build(): Promise<Menu> {
       cmd("edit.split"),
       cmd("edit.text"),
     ]),
+    submenu("素材", [
+      cmd("source.in"),
+      cmd("source.out"),
+      cmd("source.clear"),
+      sep(),
+      cmd("source.insert"),
+      cmd("source.append"),
+    ]),
     submenu("再生", [
       cmd("play.toggle"),
       sep(),
@@ -133,7 +141,14 @@ async function build(): Promise<Menu> {
       cmd("play.prevFrame"),
       cmd("play.nextFrame"),
     ]),
-    submenu("表示", [cmd("view.zoomIn"), cmd("view.zoomOut"), cmd("view.zoomFit")]),
+    submenu("表示", [
+      cmd("view.timeline"),
+      cmd("view.source"),
+      sep(),
+      cmd("view.zoomIn"),
+      cmd("view.zoomOut"),
+      cmd("view.zoomFit"),
+    ]),
     ...(isMac
       ? [
           submenu("ウインドウ", [

@@ -46,7 +46,7 @@ export function DropOverlay() {
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent text-accent">
         <Film size={40} strokeWidth={1.5} />
         <div className="text-base">ドロップして追加</div>
-        <div className="text-xs text-dim">動画・写真はタイムラインの最後に並びます。.vstudio はプロジェクトとして開きます</div>
+        <div className="text-xs text-dim">動画・写真は「素材」に並びます。.vstudio はプロジェクトとして開きます</div>
       </div>
     </div>
   );

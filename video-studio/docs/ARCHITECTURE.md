@@ -30,6 +30,8 @@ video-studio/
     lib/project.ts             プロジェクトの形、読み込み（古い形の補い）
     lib/timeline.ts            layout（どのクリップがいつ）、分割・削除・並べ替え・切り詰め、文字の段
     lib/player.ts              プレビュー：<video> をクリップごとに、canvas に描く、再生の時計
+    lib/source.ts              素材の表示の範囲（開始点・終了点）、使っている部分（純粋関数）
+    lib/sourcePlayer.ts        素材の表示：開いている動画の <video>、再生、範囲を決める
     lib/transitions.ts         切り替えを canvas に描く（xfade と同じ向きとぼかし）
     lib/anim.ts                文字・スタンプの出し方（render.rs の式と同じ）
     lib/overlayRender.ts       文字・スタンプを canvas に描く。絵はキャッシュ
@@ -86,5 +88,5 @@ video-studio/
 - `media.rs`：再生できるかの判定、サムネイルの数
 - `render.rs`：フレームの丸め、xfade / concat のつなぎ方、アニメーションの式、危ない値を断る
 - `tests/ipc.rs`：本物の ffmpeg で、テスト用の動画を作って probe → prepare → export（切り替え 2 つ、写真、文字 2 つ）→ 書き出したものを probe（大きさ、長さ、音）
-- `timeline.test.ts`、`anim.test.ts`（vitest）：layout、分割、削除、並べ替え、切り詰め、段、アニメーションの値
+- `timeline.test.ts`、`anim.test.ts`、`source.test.ts`（vitest）：layout、分割、削除、並べ替え、切り詰め、段、アニメーションの値
 - UI はブラウザのモック（`npm run dev`）で確かめる。モックの書き出しは、作ったジョブを `window.lastExportJob` に残す。動画のパスを本物に置き換えれば `examples/export.rs` で書き出せる
