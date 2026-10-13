@@ -109,6 +109,8 @@ async function build(): Promise<Menu> {
       cmd("file.save"),
       cmd("file.saveAs"),
       sep(),
+      cmd("file.print"),
+      sep(),
       cmd("page.extract"),
       cmd("page.split"),
       sep(),

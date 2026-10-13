@@ -33,6 +33,7 @@ import {
   PanelRight,
   PenLine,
   Plus,
+  Printer,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -164,6 +165,15 @@ export const COMMANDS: Command[] = [
     words: ["別名", "新しいファイル", "コピーを保存"],
     enabled: editable,
     run: () => void save(true),
+  },
+  {
+    id: "file.print",
+    title: "印刷…",
+    icon: Printer,
+    keys: ["Mod+P"],
+    words: ["プリント", "プリンター", "紙に出す", "両面", "用紙"],
+    enabled: hasDoc,
+    run: (s) => s.openDialog("print"),
   },
   { id: "file.close", title: "タブを閉じる", icon: X, keys: ["Mod+W"], words: ["閉じる"], enabled: hasDoc, run: () => void closeDoc() },
   {

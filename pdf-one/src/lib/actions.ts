@@ -157,7 +157,7 @@ export async function openRequested() {
 // ---------------------------------------------------------------- saving
 
 /** The file a text box's lines and the forms' values are written from. */
-function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
+export function buildPages(d: Doc, uids?: Set<string>): PageSpec[] {
   return d.pages
     .filter((p) => !uids || uids.has(p.uid))
     .map((p) => ({

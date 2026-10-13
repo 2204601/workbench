@@ -155,6 +155,8 @@ export const api = {
   pdfViewBytes: async (id: number) => bytes(await invoke<ArrayBuffer>("pdf_view_bytes", { id })),
   closePdf: (id: number) => invoke<void>("close_pdf", { id }),
   savePdf: (request: { path: string; pages: PageSpec[]; forms: FormEntry[] }) => invoke<Saved>("save_pdf", { request }),
+  /** The file as it would be saved, as bytes (printing). */
+  composePdf: async (request: { pages: PageSpec[]; forms: FormEntry[] }) => bytes(await invoke<ArrayBuffer>("compose_pdf", { request })),
 
   addImage: (path: string) => invoke<ImageInfo>("add_image", { path }),
   addImageBytes: (data: Uint8Array) => invoke<ImageInfo>("add_image_bytes", data),

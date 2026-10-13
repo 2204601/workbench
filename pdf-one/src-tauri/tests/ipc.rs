@@ -192,6 +192,11 @@ fn open_edit_save_and_open_again() {
     assert!(String::from_utf8_lossy(&doc.get_page_content(p[&1])).contains("Page 3"));
     assert!(String::from_utf8_lossy(&doc.get_page_content(p[&2])).contains("Page 1"));
 
+    // The same pages as bytes, for printing: a PDF with the annotations in it.
+    let printed = ui.raw("compose_pdf", json!({ "request": { "pages": pages, "forms": [] } }));
+    assert!(printed.starts_with(b"%PDF-"));
+    assert_eq!(lopdf::Document::load_mem(&printed).unwrap().get_pages().len(), 4);
+
     // Saving over a file keeps the old one in the backups.
     let again = ui
         .call("save_pdf", json!({ "request": { "path": out, "pages": [{ "source": a_id, "index": 1 }], "forms": [] } }))

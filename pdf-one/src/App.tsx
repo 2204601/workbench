@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { ContextMenu } from "./components/ContextMenu";
 import { DetailsPanel } from "./components/DetailsPanel";
 import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dialogs";
+import { PrintDialog } from "./components/PrintDialog";
 import { checkDrafts, RecoverDialog } from "./components/RecoverDialog";
 import { DropOverlay, useFileDrop } from "./components/DropZone";
 import { Organizer } from "./components/Organizer";
@@ -144,6 +145,7 @@ export default function App() {
       {dialog === "signature" && <SignatureDialog />}
       {dialog === "seal" && <SealDialog />}
       {dialog === "recover" && <RecoverDialog />}
+      {dialog === "print" && <PrintDialog />}
       <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />

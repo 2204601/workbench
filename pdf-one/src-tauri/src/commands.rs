@@ -227,49 +227,76 @@ pub struct Saved {
     pub backup: Option<String>,
 }
 
-/// Writes the pages and edits to `path`. An existing file there is copied
-/// to the backups first (docs/SPEC.md「保存」).
-#[tauri::command]
-pub async fn save_pdf<R: Runtime>(app: AppHandle<R>, request: SaveRequest) -> CmdResult<Saved> {
+/// The file as it would be saved, as bytes: the pages in order with the
+/// annotations and form values written in. Heavy, so on another thread.
+async fn compose_bytes<R: Runtime>(
+    app: &AppHandle<R>,
+    pages: Vec<PageSpec>,
+    forms: Vec<FormEntry>,
+) -> CmdResult<Vec<u8>> {
     let state = app.state::<AppState>();
-    let target = PathBuf::from(&request.path);
-    if target.extension().map(|e| e.to_ascii_lowercase()) != Some("pdf".into()) {
-        return Err("保存するファイルの名前は .pdf で終わるようにしてください".into());
-    }
     let sources = lock(&state.docs).clone();
-    for p in &request.pages {
+    for p in &pages {
         if let Some(s) = p.source {
             if !sources.contains_key(&s) {
                 return Err("表示だけの PDF のページは保存できません".into());
             }
         }
     }
-    let backups = data_dir(&app, "backups")?;
-    let started = std::time::Instant::now();
     // A copy of the store (pictures are shared, not copied), so pictures
     // can still be shown while the file is written.
     let images = lock(&state.images).clone();
-    let saved = tauri::async_runtime::spawn_blocking(move || -> CmdResult<Saved> {
-        let bytes = compose::compose(compose::Input {
+    tauri::async_runtime::spawn_blocking(move || {
+        compose::compose(compose::Input {
             sources: &sources,
-            pages: &request.pages,
-            forms: &request.forms,
+            pages: &pages,
+            forms: &forms,
             font: crate::pdf::font::system_font(),
             images: &images,
-        })?;
+        })
+    })
+    .await
+    .map_err(err)?
+}
+
+/// Writes the pages and edits to `path`. An existing file there is copied
+/// to the backups first (docs/SPEC.md「保存」).
+#[tauri::command]
+pub async fn save_pdf<R: Runtime>(app: AppHandle<R>, request: SaveRequest) -> CmdResult<Saved> {
+    let target = PathBuf::from(&request.path);
+    if target.extension().map(|e| e.to_ascii_lowercase()) != Some("pdf".into()) {
+        return Err("保存するファイルの名前は .pdf で終わるようにしてください".into());
+    }
+    let backups = data_dir(&app, "backups")?;
+    let started = std::time::Instant::now();
+    let bytes = compose_bytes(&app, request.pages, request.forms).await?;
+    let path = request.path;
+    let saved = tauri::async_runtime::spawn_blocking(move || -> CmdResult<Saved> {
         let backup = if target.is_file() { Some(files::backup(&target, &backups)?) } else { None };
         files::write_atomic(&target, &bytes)?;
-        Ok(Saved {
-            path: request.path,
-            size: bytes.len() as u64,
-            backup: backup.map(|b| b.to_string_lossy().into_owned()),
-        })
+        Ok(Saved { path, size: bytes.len() as u64, backup: backup.map(|b| b.to_string_lossy().into_owned()) })
     })
     .await
     .map_err(err)??;
     log::info!("保存しました: {}（{} バイト、{} ms）", saved.path, saved.size, started.elapsed().as_millis());
     remember_recent(&app, &saved.path);
     Ok(saved)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeRequest {
+    pub pages: Vec<PageSpec>,
+    #[serde(default)]
+    pub forms: Vec<FormEntry>,
+}
+
+/// The file as it would be saved, without saving it: for printing
+/// (src/lib/print.ts draws it with pdf.js, annotations and all).
+#[tauri::command]
+pub async fn compose_pdf<R: Runtime>(app: AppHandle<R>, request: ComposeRequest) -> CmdResult<Response> {
+    let bytes = compose_bytes(&app, request.pages, request.forms).await?;
+    Ok(Response::new(bytes))
 }
 
 // --------------------------------------------------------------- images

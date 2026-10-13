@@ -152,6 +152,11 @@ export function installMockBackend() {
         console.info("save_pdf (mock)", r);
         return { path: r.path, size: 12345, backup: null };
       }
+      case "compose_pdf": {
+        // The sample again, as many pages as asked for (no annotations drawn).
+        const r = a.request as { pages: PageSpec[] };
+        return Array.from(samplePdf(Math.max(1, r.pages.length)));
+      }
       case "add_image":
         throw "ブラウザ版ではファイルを読めません。画像は貼り付けてください";
       case "add_image_bytes":

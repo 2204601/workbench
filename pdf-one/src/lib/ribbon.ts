@@ -36,7 +36,7 @@ export const RIBBON: RibbonTab[] = [
   {
     id: "home",
     label: "ホーム",
-    groups: [["file.open", "file.save"], ["edit.undo", "edit.redo"], ["tool.select", "tool.highlight", "tool.text", "tool.image"], ["edit.find"]],
+    groups: [["file.open", "file.save", "file.print"], ["edit.undo", "edit.redo"], ["tool.select", "tool.highlight", "tool.text", "tool.image"], ["edit.find"]],
   },
   {
     id: "markup",
