@@ -1,26 +1,31 @@
-import { command, isEnabled, runCommand } from "../lib/commands";
+import { command, isEnabled, plainTitle, runCommand } from "../lib/commands";
 import { comboText } from "../lib/keys";
 import { useStore } from "../store";
 
-/** A toolbar button for a command: its icon, name and key from the table. */
+/**
+ * A small button for a command: its icon and its name from the table (a
+ * word on every button, docs/UX.md §2). `compact` shows the icon alone;
+ * `label` replaces the name.
+ */
 export function CommandButton({ id, label, compact }: { id: string; label?: string; compact?: boolean }) {
   const c = command(id);
   const enabled = useStore((s) => isEnabled(c, s));
   const checked = useStore((s) => c.checked?.(s) ?? false);
   const Icon = c.icon;
+  const title = plainTitle(c);
   return (
     <button
       onClick={() => runCommand(id)}
       disabled={!enabled}
-      title={c.keys ? `${c.title.replace(/…$/, "")}（${comboText(c.keys[0])}）` : c.title}
-      aria-label={c.title}
+      title={c.keys ? `${title}（${comboText(c.keys[0])}）` : title}
+      aria-label={title}
       aria-pressed={c.checked ? checked : undefined}
-      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-md ${compact ? "px-1.5" : "px-2"} text-[13px] disabled:opacity-35 ${
-        checked ? "bg-accent text-white" : "hover:bg-white/10"
+      className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md ${compact ? "px-1.5" : "px-2"} text-sm whitespace-nowrap disabled:opacity-40 ${
+        checked ? "bg-accent text-white" : "hover:bg-hover"
       }`}
     >
       {Icon && <Icon size={16} />}
-      {label}
+      {!compact && (label ?? title)}
     </button>
   );
 }

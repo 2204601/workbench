@@ -2,13 +2,15 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deleteTargetPages } from "../lib/actions";
-import type { Annot, AnnotKind } from "../lib/api";
+import type { Annot } from "../lib/api";
 import { updateAnnot } from "../lib/edit";
 import { formatPdfDate } from "../lib/format";
+import { KIND_LABEL } from "../lib/hints";
 import { isMac } from "../lib/keys";
 import { goToDestination } from "../lib/links";
 import { getSource } from "../lib/pdfjs";
 import { useStore, type Doc } from "../store";
+import { CommandButton } from "./CommandButton";
 import { useContextMenu } from "./ContextMenu";
 import { Thumb, thumbSize } from "./Thumb";
 import { pickPage, usePageDrag } from "./usePageDrag";
@@ -18,17 +20,17 @@ const WIDTH = 132;
 
 const PAGE_MENU = ["page.rotateLeft", "page.rotateRight", "-", "page.insertBlank", "page.insertFile", "-", "page.extract", "-", "page.delete"];
 
-/** The left panel: pages, comments, bookmarks. */
+/** The left list (docs/UX.md §4): pages, 書き込み, bookmarks. */
 export function Sidebar({ d }: { d: Doc }) {
   const panel = useStore((s) => s.panel);
   const setPanel = useStore((s) => s.setPanel);
   const tabs = [
     { id: "pages" as const, label: "ページ" },
-    { id: "comments" as const, label: "コメント" },
+    { id: "comments" as const, label: "書き込み" },
     { id: "outline" as const, label: "しおり" },
   ];
   return (
-    <aside className="flex w-[188px] shrink-0 flex-col border-r border-line bg-panel">
+    <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-panel" aria-label="一覧">
       <div className="flex shrink-0 gap-0.5 border-b border-line p-1" role="tablist">
         {tabs.map(({ id, label }) => (
           <button
@@ -37,8 +39,8 @@ export function Sidebar({ d }: { d: Doc }) {
             aria-selected={panel === id}
             title={label}
             onClick={() => setPanel(id)}
-            className={`flex h-7 flex-1 items-center justify-center gap-1 rounded-md text-xs whitespace-nowrap ${
-              panel === id ? "bg-raised text-fg" : "text-dim hover:text-fg"
+            className={`flex h-8 flex-1 items-center justify-center gap-1 rounded-md text-sm whitespace-nowrap ${
+              panel === id ? "bg-raised text-fg" : "text-dim hover:bg-hover hover:text-fg"
             }`}
           >
             {label}
@@ -82,6 +84,15 @@ function PageList({ d }: { d: Doc }) {
   };
 
   return (
+    <>
+      {/* The same things as the right-click menu, as buttons with words (UX §2). */}
+      {!d.readOnly && (
+        <div className="flex shrink-0 justify-center gap-0.5 border-b border-line p-1">
+          <CommandButton id="page.rotateRight" label="回転" />
+          <CommandButton id="page.delete" label="削除" />
+          <CommandButton id="page.insertFile" label="足す" />
+        </div>
+      )}
     <div
       ref={scroller}
       data-virtual-list
@@ -113,7 +124,7 @@ function PageList({ d }: { d: Doc }) {
               }}
             >
               <div
-                className={`rounded-[3px] p-[3px] ${picked ? "bg-accent" : current ? "bg-white/25" : "bg-transparent"}`}
+                className={`rounded-[3px] p-[3px] ${picked ? "bg-accent" : current ? "bg-line" : "bg-transparent"}`}
               >
                 <Thumb item={p} width={WIDTH} />
               </div>
@@ -125,6 +136,7 @@ function PageList({ d }: { d: Doc }) {
       </div>
       {drag && <DragLabel n={drag.uids.length} x={drag.x} y={drag.y} />}
     </div>
+    </>
   );
 }
 
@@ -144,31 +156,21 @@ export function DragLabel({ n, x, y }: { n: number; x: number; y: number }) {
   );
 }
 
-const KIND_LABEL: Record<AnnotKind, string> = {
-  highlight: "マーカー",
-  underline: "下線",
-  strikeout: "取り消し線",
-  ink: "手書き",
-  rect: "四角形",
-  ellipse: "楕円",
-  line: "直線",
-  arrow: "矢印",
-  text: "テキスト",
-  note: "付箋",
-  image: "画像",
-};
-
 /** Every annotation, page by page; the selected one's comment can be edited. */
 function Comments({ d }: { d: Doc }) {
   const rows = d.pages.flatMap((p, i) => (d.annots[p.uid] ?? []).map((a) => ({ page: i, a })));
   if (!rows.length) {
-    return <div className="p-4 text-center text-xs leading-relaxed text-dim">注釈はまだありません。ツールバーのマーカーや付箋で書き込めます。</div>;
+    return (
+      <div className="p-4 text-center text-xs leading-relaxed text-dim">
+        まだ書き込みがありません。上の「書き込み」タブのマーカーや付箋で書くと、ここに並びます。
+      </div>
+    );
   }
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
       {rows.map(({ page, a }, i) => (
         <div key={a.id}>
-          {(i === 0 || rows[i - 1].page !== page) && <div className="px-1.5 pt-2 pb-1 text-[11px] text-dim">{page + 1} ページ</div>}
+          {(i === 0 || rows[i - 1].page !== page) && <div className="px-1.5 pt-2 pb-1 text-xs text-dim">{page + 1} ページ</div>}
           <CommentRow a={a} page={page} selected={d.selectedAnnot === a.id} readOnly={!!d.readOnly} />
         </div>
       ))}
@@ -187,7 +189,7 @@ function CommentRow({ a, page, selected, readOnly }: { a: Annot; page: number; s
       }}
       className={`mb-1 cursor-pointer rounded-md border px-2 py-1.5 ${selected ? "border-accent bg-raised" : "border-transparent hover:bg-raised"}`}
     >
-      <div className="flex items-center gap-1.5 text-[11px] text-dim">
+      <div className="flex items-center gap-1.5 text-xs text-dim">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: a.color }} />
         <span className="text-fg">{KIND_LABEL[a.kind]}</span>
         <span className="min-w-0 flex-1 truncate">{a.author}</span>
@@ -212,7 +214,7 @@ function CommentRow({ a, page, selected, readOnly }: { a: Annot; page: number; s
       ) : (
         preview && <div className="mt-0.5 line-clamp-3 text-xs break-words whitespace-pre-wrap">{preview}</div>
       )}
-      {a.modified && <div className="mt-0.5 text-[10px] text-dim">{formatPdfDate(a.modified)}</div>}
+      {a.modified && <div className="mt-0.5 text-xs text-dim">{formatPdfDate(a.modified)}</div>}
     </div>
   );
 }
@@ -241,7 +243,7 @@ function Outline({ d }: { d: Doc }) {
   if (items === null) return <div className="p-4 text-center text-xs text-dim">読み込んでいます…</div>;
   if (!items.length) return <div className="p-4 text-center text-xs text-dim">しおりはありません</div>;
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto p-1.5 text-[13px]">
+    <div className="min-h-0 flex-1 overflow-y-auto p-1.5 text-sm">
       {items.map((it, i) => (
         <OutlineNode key={i} it={it} source={source} depth={0} />
       ))}

@@ -87,6 +87,10 @@ export interface Doc {
   savePath: string | null;
   /** The file it was opened from. */
   openedPath: string;
+  /** Its size in bytes (shown in the details panel). */
+  size: number;
+  /** When ⌘S last wrote it this run (the status bar), or null. */
+  savedAt: number | null;
   /** Opened files its pages come from (released when the tab closes). */
   sources: number[];
   pages: PageItem[];
@@ -151,8 +155,14 @@ interface State {
   pendingImage: ImageInfo | null;
   /** What the left panel shows. */
   panel: "pages" | "comments" | "outline" | null;
+  /** The right panel (詳細: what is selected, docs/UX.md §7). */
+  details: boolean;
   /** The page organizer (a grid of all pages) instead of the pages. */
   organizer: boolean;
+  /** Keep a one-shot tool (text, shapes, pictures) after placing (UX §6「続けて置く」). */
+  sticky: boolean;
+  /** 文字を大きく: 1, 1.15 or 1.3 (UX §10). */
+  textSize: number;
   search: Search;
   /** The name put on new annotations. */
   author: string;
@@ -175,7 +185,10 @@ interface State {
   setStyle: (t: Tool, patch: Partial<ToolStyle>) => void;
   setPendingImage: (i: ImageInfo | null) => void;
   setPanel: (p: State["panel"]) => void;
+  setDetails: (on: boolean) => void;
   setOrganizer: (on: boolean) => void;
+  setSticky: (on: boolean) => void;
+  setTextSize: (n: number) => void;
   setSearch: (patch: Partial<Search>) => void;
   setAuthor: (name: string) => void;
 
@@ -240,6 +253,7 @@ function savedStyles(): Record<Tool, ToolStyle> {
 }
 
 const savedPanel = load("panel");
+const savedTextSize = Number(load("textSize"));
 
 export const useStore = create<State>()((set, get) => {
   /** Applies `f` to the tab `key` (default: the active one). */
@@ -268,7 +282,10 @@ export const useStore = create<State>()((set, get) => {
     styles: savedStyles(),
     pendingImage: null,
     panel: savedPanel === "none" ? null : ((savedPanel as State["panel"]) ?? "pages"),
+    details: load("details") !== "off",
     organizer: false,
+    sticky: load("sticky") === "on",
+    textSize: [1.15, 1.3].includes(savedTextSize) ? savedTextSize : 1,
     search: { open: false, query: "", results: [], current: 0, progress: null, focusSeq: 0 },
     author: "",
 
@@ -319,7 +336,19 @@ export const useStore = create<State>()((set, get) => {
       set({ panel });
       persist("panel", panel ?? "none");
     },
+    setDetails: (details) => {
+      set({ details });
+      persist("details", details ? "on" : "off");
+    },
     setOrganizer: (organizer) => set({ organizer }),
+    setSticky: (sticky) => {
+      set({ sticky });
+      persist("sticky", sticky ? "on" : "off");
+    },
+    setTextSize: (textSize) => {
+      set({ textSize });
+      persist("textSize", String(textSize));
+    },
     setSearch: (patch) => set({ search: { ...get().search, ...patch } }),
     setAuthor: (author) => set({ author }),
 

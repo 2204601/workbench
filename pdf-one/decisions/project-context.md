@@ -34,3 +34,4 @@ AI と人が実装前に確認する **現在の前提**。機能要件、ロー
 ## 逸脱
 
 - Security §1 の CSP：`connect-src` に `'self'` を足した（[ADR-0001](adr-0001-csp-connect-self.md)）
+- UI §1 のテーマ：OS に合わせてライト / ダーク（[ADR-0002](adr-0002-theme-follows-os.md)）

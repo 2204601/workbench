@@ -1,19 +1,67 @@
 @import "tailwindcss";
 
-/* Platform UI §1: the tokens shared by the desktop tools. */
+/*
+ * The colours follow the OS (ADR-0002): light or dark by prefers-color-scheme.
+ * The dark values are Platform UI §1's tokens; the light ones are picked to
+ * read like Word and Acrobat, with AA contrast for text. Components use the
+ * Tailwind utilities (bg-panel, text-dim, bg-hover…), never a literal colour.
+ */
+:root {
+  --bg: #ffffff;
+  --panel: #f3f4f6;
+  --raised: #e5e7eb;
+  --line: #d1d5db;
+  --fg: #1f2328;
+  --dim: #5b6270;
+  --accent: #2563eb;
+  --danger: #d1242f;
+  --success: #1a7f37;
+  --warn: #9a6700;
+  /* A translucent layer for hovered buttons and rows. */
+  --hover: rgba(0, 0, 0, 0.07);
+  /* Behind the pages, so white paper stands out. */
+  --canvas: #d7d9de;
+  --tabbar: #e4e6ea;
+  --scrollbar: #b8bcc4;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1f;
+    --panel: #232428;
+    --raised: #2c2d32;
+    --line: #34353b;
+    --fg: #e6e6e8;
+    --dim: #9a9ba3;
+    --accent: #4c8dff;
+    --danger: #ef5d5d;
+    --success: #3ec27f;
+    --warn: #e8b04a;
+    --hover: rgba(255, 255, 255, 0.09);
+    --canvas: #2a2b30;
+    --tabbar: #141518;
+    --scrollbar: #45464d;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-dim: var(--dim);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-hover: var(--hover);
+  --color-canvas: var(--canvas);
+  --color-tabbar: var(--tabbar);
+}
+
 @theme {
-  --color-bg: #1b1c1f;
-  --color-panel: #232428;
-  --color-raised: #2c2d32;
-  --color-line: #34353b;
-  --color-fg: #e6e6e8;
-  --color-dim: #9a9ba3;
-  --color-accent: #4c8dff;
-  --color-danger: #ef5d5d;
-  --color-success: #3ec27f;
-  --color-warn: #e8b04a;
-
-
   --animate-toast-in: toast-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
   --animate-toast-out: toast-out 0.2s ease-in forwards;
   --animate-toast-ring: toast-ring 1.1s ease-out;
@@ -87,6 +135,18 @@ body,
   height: 100%;
 }
 
+/*
+ * 文字を大きく (docs/UX.md §10): the whole UI is sized in rem, so a bigger
+ * root font grows buttons, panels and text together, like the OS's own
+ * scaling. The pages themselves are in pixels and don't change.
+ */
+:root[data-text="large"] {
+  font-size: 115%;
+}
+:root[data-text="larger"] {
+  font-size: 130%;
+}
+
 /* macOS: the page runs under the title bar, with the window buttons over its
    top left (src/lib/titleBar.ts). Room left for them; none in full screen,
    where they are hidden, and none on Windows, which keeps its title bar.
@@ -104,12 +164,13 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-fg);
+  background: var(--bg);
+  color: var(--fg);
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Meiryo",
     sans-serif;
-  font-size: 13px;
+  /* 14px at the normal size (docs/UX.md §10). */
+  font-size: 0.875rem;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
@@ -121,12 +182,18 @@ textarea {
   -webkit-user-select: text;
 }
 
+/* Keyboard focus is shown; a click's isn't (Platform UI). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #45464d;
+  background: var(--scrollbar);
   border-radius: 5px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -164,7 +231,7 @@ textarea {
   z-index: 2;
 }
 .pdfViewer .textLayer ::selection {
-  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 /* While a drawing or marking tool is in hand, links and fields don't react. */
 .pdfViewer[data-tool="hand"] .annotationLayer,

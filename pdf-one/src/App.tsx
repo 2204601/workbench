@@ -3,18 +3,20 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect } from "react";
 import { ContextMenu } from "./components/ContextMenu";
-import { PasswordDialog, SplitDialog } from "./components/Dialogs";
+import { DetailsPanel } from "./components/DetailsPanel";
+import { PasswordDialog, SaveChoiceDialog, SplitDialog } from "./components/Dialogs";
 import { DropOverlay, useFileDrop } from "./components/DropZone";
 import { Organizer } from "./components/Organizer";
-import { PropertiesBar } from "./components/PropertiesBar";
+import { Ribbon } from "./components/Ribbon";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Sidebar } from "./components/Sidebar";
 import { StampDialog } from "./components/StampDialog";
 import { StartScreen } from "./components/StartScreen";
+import { StatusBar } from "./components/StatusBar";
+import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
-import { TabBar, ToolBar } from "./components/Toolbar";
 import { Viewer } from "./components/Viewer";
 import { openRequested, settleAll } from "./lib/actions";
 import { api } from "./lib/api";
@@ -40,7 +42,9 @@ export default function App() {
   const dialog = useStore((s) => s.dialog);
   const d = useStore(activeDoc);
   const panel = useStore((s) => s.panel);
+  const details = useStore((s) => s.details);
   const organizer = useStore((s) => s.organizer);
+  const textSize = useStore((s) => s.textSize);
   const dropping = useFileDrop();
 
   useEffect(() => {
@@ -89,6 +93,14 @@ export default function App() {
     };
   }, []);
 
+  // 文字を大きく (index.css): the root font size scales the whole UI.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (textSize >= 1.3) root.dataset.text = "larger";
+    else if (textSize >= 1.15) root.dataset.text = "large";
+    else delete root.dataset.text;
+  }, [textSize]);
+
   // The window's title: the file, with a dot when unsaved (Windows shows it).
   useEffect(() => {
     const title = d ? `${d.dirty ? "● " : ""}${d.name} — PDF One` : "PDF One";
@@ -101,15 +113,16 @@ export default function App() {
       <TabBar />
       {d ? (
         <>
-          <ToolBar />
-          <PropertiesBar />
+          <Ribbon />
           <div className="flex min-h-0 flex-1">
             {panel && !organizer && <Sidebar d={d} />}
             <div className="relative flex min-w-0 flex-1">
               {organizer ? <Organizer d={d} /> : <Viewer key={d.key} d={d} />}
               {!organizer && <SearchBar />}
             </div>
+            {details && !organizer && <DetailsPanel d={d} />}
           </div>
+          <StatusBar d={d} />
         </>
       ) : (
         <StartScreen />
@@ -119,6 +132,7 @@ export default function App() {
       {dialog === "shortcuts" && <ShortcutHelp />}
       {dialog === "stamps" && <StampDialog />}
       {dialog === "split" && <SplitDialog />}
+      <SaveChoiceDialog />
       <PasswordDialog />
       <ContextMenu />
       {dropping && <DropOverlay />}

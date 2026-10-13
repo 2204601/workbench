@@ -24,11 +24,11 @@ export function onCopy(e: ClipboardEvent) {
   const found = d && findAnnot(d, d.selectedAnnot);
   if (!found) return;
   const a = found.annot;
-  const marker = a.kind === "text" ? a.text : a.contents || `[PDF One の注釈 ${a.id}]`;
+  const marker = a.kind === "text" ? a.text : a.contents || `[PDF One の書き込み ${a.id}]`;
   copied = { annot: a, marker };
   e.clipboardData?.setData("text/plain", marker);
   e.preventDefault();
-  st().notify({ title: "注釈をコピーしました", duration: 1500 });
+  st().notify({ title: "書き込みをコピーしました", duration: 1500 });
 }
 
 export function onPaste(e: ClipboardEvent) {

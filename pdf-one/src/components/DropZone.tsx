@@ -124,7 +124,7 @@ export function DropOverlay() {
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent text-accent">
         <FileDown size={40} strokeWidth={1.5} />
         <div className="text-base">ドロップして開く</div>
-        <div className="text-xs text-dim">サイドバーのページ一覧やページの整理にドロップすると、ページとして挿入します</div>
+        <div className="text-xs text-dim">左のページ一覧や「すべてのページ」にドロップすると、ページとして足します</div>
       </div>
     </div>
   );

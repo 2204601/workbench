@@ -15,7 +15,7 @@ export function NotePopup({ annot, matrix, readOnly }: { annot: Annot; matrix: M
   const [, y1, x2] = rectToScreen(matrix, annot.rect);
   return (
     <div
-      className="absolute z-10 w-60 animate-fade-in rounded-lg border border-line bg-panel text-fg shadow-xl shadow-black/50"
+      className="absolute z-10 w-60 animate-fade-in rounded-lg border border-line bg-panel text-fg shadow-xl"
       style={{ left: x2 + 8, top: y1 }}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
@@ -28,7 +28,7 @@ export function NotePopup({ annot, matrix, readOnly }: { annot: Annot; matrix: M
           <button
             title="削除"
             aria-label="付箋を削除"
-            className="rounded p-0.5 hover:bg-white/10 hover:text-danger"
+            className="rounded p-0.5 hover:bg-hover hover:text-danger"
             onClick={() => {
               st().commit((s) => removeAnnot(s, annot.id));
               st().patchDoc({ selectedAnnot: null });
@@ -51,7 +51,7 @@ export function NotePopup({ annot, matrix, readOnly }: { annot: Annot; matrix: M
           touched.current = true;
           st().amend((s) => updateAnnot(s, annot.id, { contents }));
         }}
-        className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13px] leading-relaxed outline-none placeholder:text-dim"
+        className="block w-full resize-y bg-transparent px-2.5 py-2 text-sm leading-relaxed outline-none placeholder:text-dim"
       />
     </div>
   );

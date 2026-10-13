@@ -20,12 +20,13 @@ export function StartScreen() {
         <div className="flex flex-col items-center gap-5 rounded-2xl border-2 border-dashed border-line px-8 py-12 text-center">
           <FileText size={40} strokeWidth={1.4} className="text-accent" />
           <div>
-            <h1 className="text-lg font-semibold">PDF を開いてください</h1>
-            <p className="mt-1 text-dim">ここへドロップしても開けます。いくつでも、タブで並べて開けます。</p>
+            <h1 className="text-lg font-semibold">開く PDF を選んでください</h1>
+            <p className="mt-1 text-dim">開いたらすぐ書き込めます。ここへドロップしても開けます。いくつでも、タブで並べて開けます。</p>
           </div>
-          <button onClick={() => runCommand(open.id)} className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-white hover:brightness-110">
-            <FolderOpen size={16} />
-            PDF を開く（{comboText(open.keys![0])}）
+          <button onClick={() => runCommand(open.id)} className="flex h-11 items-center gap-2 rounded-lg bg-accent px-6 text-base text-white hover:brightness-110">
+            <FolderOpen size={18} />
+            PDF を開く
+            <span className="text-xs opacity-80">{comboText(open.keys![0])}</span>
           </button>
         </div>
         {recent.length > 0 && (

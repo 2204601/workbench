@@ -10,6 +10,7 @@ import { warn } from "./log";
 import { notifyIfAway } from "./osNotify";
 import { getSource, loadSource, releaseSource, type Source } from "./pdfjs";
 import { TEXT_PADDING, wrapText } from "./text";
+import { askSaveChoice } from "../components/Dialogs";
 import { activeDoc, newUid, useStore, type Doc, type PageItem } from "../store";
 
 const st = () => useStore.getState();
@@ -67,6 +68,8 @@ export async function openPaths(paths: string[]) {
         name: opened.name,
         savePath: null,
         openedPath: path,
+        size: opened.size,
+        savedAt: null,
         sources: [src.id],
         ...snap,
         past: [],
@@ -151,7 +154,8 @@ function formValues(d: Doc): FormEntry[] {
 }
 
 /** The name the first save offers: next to the original, "_編集" added. */
-const suggested = (d: Doc) => d.savePath ?? `${dirName(d.openedPath)}${sep(d.openedPath)}${stem(d.openedPath)}_編集.pdf`;
+const suggestedName = (d: Doc) => `${stem(d.openedPath)}_編集.pdf`;
+const suggested = (d: Doc) => d.savePath ?? `${dirName(d.openedPath)}${sep(d.openedPath)}${suggestedName(d)}`;
 
 async function askPath(title: string, defaultPath: string): Promise<string | null> {
   const p = await saveDialog({ title, defaultPath, filters: PDF_FILTER });
@@ -160,9 +164,10 @@ async function askPath(title: string, defaultPath: string): Promise<string | nul
 }
 
 /**
- * ⌘S writes where the tab was last saved; the first time (and ⌘⇧S) asks
- * where, offering a new name, so the original stays unless the user picks
- * it. Whatever is overwritten is kept in the backups (Rust).
+ * ⌘S writes where the tab was last saved. The first time it asks how (a
+ * new file next to the original, or the original itself, docs/UX.md §8),
+ * and for a new file where; ⌘⇧S always asks where. Whatever is overwritten
+ * is kept in the backups (Rust).
  */
 export async function save(as = false, key?: string): Promise<boolean> {
   const d = key ? st().docs.find((x) => x.key === key) : doc();
@@ -172,6 +177,11 @@ export async function save(as = false, key?: string): Promise<boolean> {
     return false;
   }
   let path = d.savePath;
+  if (!as && !path) {
+    const choice = await askSaveChoice(d.name, suggestedName(d));
+    if (!choice) return false;
+    if (choice === "overwrite") path = d.openedPath;
+  }
   if (as || !path) {
     path = await askPath(as ? "名前を付けて保存" : "保存", suggested(d)).catch(() => null);
     if (!path) return false;
@@ -188,7 +198,7 @@ export async function save(as = false, key?: string): Promise<boolean> {
   st().setBusy("保存しています…");
   try {
     const r = await api.savePdf({ path, pages: buildPages(d), forms: formValues(d) });
-    st().patchDoc({ savePath: r.path, name: baseName(r.path), dirty: false, signed: false }, d.key);
+    st().patchDoc({ savePath: r.path, name: baseName(r.path), dirty: false, signed: false, savedAt: Date.now() }, d.key);
     st().notify({
       title: "保存しました",
       detail: r.backup ? `${r.path}\n上書きする前の版はバックアップに残しました。` : r.path,
@@ -220,21 +230,21 @@ export async function extractPages() {
   if (!uids.length) return;
   const nums = uids.map((u) => d.pages.findIndex((p) => p.uid === u) + 1);
   const label = nums.length === 1 ? `p${nums[0]}` : `p${nums[0]}-${nums[nums.length - 1]}`;
-  const path = await askPath("ページを書き出す", `${dirName(d.openedPath)}${sep(d.openedPath)}${stem(d.name)}_${label}.pdf`).catch(
+  const path = await askPath("ページを抜き出す", `${dirName(d.openedPath)}${sep(d.openedPath)}${stem(d.name)}_${label}.pdf`).catch(
     () => null,
   );
   if (!path) return;
-  st().setBusy("書き出しています…");
+  st().setBusy("抜き出しています…");
   try {
     const r = await api.savePdf({ path, pages: buildPages(d, new Set(uids)), forms: formValues(d) });
     st().notify({
-      title: `${uids.length} ページを書き出しました`,
+      title: `${uids.length} ページを抜き出しました`,
       detail: r.path,
       kind: "success",
       action: { label: revealLabel, onClick: () => void api.revealFile(r.path).catch(() => {}) },
     });
   } catch (e) {
-    st().notify({ title: "書き出せませんでした", detail: String(e), kind: "error" });
+    st().notify({ title: "抜き出せませんでした", detail: String(e), kind: "error" });
   } finally {
     st().setBusy(null);
   }
@@ -351,7 +361,7 @@ export function insertBlankPage() {
 export async function insertFromFiles(at?: number) {
   const d = doc();
   if (!d || d.readOnly) return;
-  const picked = await open({ multiple: true, filters: PDF_FILTER, title: "挿入する PDF" }).catch(() => null);
+  const picked = await open({ multiple: true, filters: PDF_FILTER, title: "ページを足す PDF" }).catch(() => null);
   if (!picked) return;
   const paths = Array.isArray(picked) ? picked : [picked];
   await insertPaths(paths, at ?? d.page + 1);
@@ -367,16 +377,16 @@ export async function insertPaths(paths: string[], at: number) {
       const { src, opened } = await openSource(path);
       if (opened.readOnly) {
         void releaseSource(src.id);
-        st().notify({ title: `${opened.name} は挿入できません`, detail: opened.readOnly, kind: "error" });
+        st().notify({ title: `${opened.name} のページは足せません`, detail: opened.readOnly, kind: "error" });
         continue;
       }
       const snap = pagesOf(src, opened);
       st().commit((s) => insertPages(s, pos, snap.pages, snap.annots), d.key);
       st().patchDoc((x) => ({ sources: [...x.sources, src.id] }), d.key);
-      st().notify({ title: `${opened.name} の ${snap.pages.length} ページを挿入しました`, kind: "success" });
+      st().notify({ title: `${opened.name} の ${snap.pages.length} ページを足しました`, kind: "success" });
       pos += snap.pages.length;
     } catch (e) {
-      st().notify({ title: `${baseName(path)} を挿入できませんでした`, detail: String((e as Error)?.message ?? e), kind: "error" });
+      st().notify({ title: `${baseName(path)} のページを足せませんでした`, detail: String((e as Error)?.message ?? e), kind: "error" });
     } finally {
       st().setBusy(null);
     }
