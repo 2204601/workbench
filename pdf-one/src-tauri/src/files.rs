@@ -230,7 +230,7 @@ pub fn list_drafts(dir: &Path) -> Vec<Draft> {
             })
         })
         .collect();
-    out.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+    out.sort_by_key(|d| std::cmp::Reverse(d.saved_at));
     out
 }
 
