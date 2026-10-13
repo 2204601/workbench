@@ -76,18 +76,22 @@ export function Viewer({ d }: { d: Doc }) {
 
   // The zoom as a number for the window's size. "Fit" fits the page in view
   // when the mode or the window changes, and stays as it is while scrolling
-  // (see fitScale).
+  // (see fitScale). Shown again (after the page organizer, another tab), the
+  // view fits the same page as before, so coming back doesn't change the zoom.
   const page = useRef(d.page);
   page.current = d.page;
-  const scale = useMemo(
-    () => (size.w ? fitScale(d.zoom, d.pages, page.current, size.w, size.h) : d.scale),
+  /** The view has been laid out at its real size once (set below). */
+  const sized = useRef(false);
+  const { scale, fitPage } = useMemo(() => {
+    if (!size.w) return { scale: d.scale, fitPage: d.fitPage };
+    const base = Math.min(sized.current ? page.current : d.fitPage, d.pages.length - 1);
+    return { scale: fitScale(d.zoom, d.pages, base, size.w, size.h), fitPage: base };
     // Not d.page: scrolling to another page doesn't refit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [d.zoom, d.pages, size.w, size.h],
-  );
+  }, [d.zoom, d.pages, size.w, size.h]);
   useEffect(() => {
-    if (Math.abs(scale - d.scale) > 1e-4) st().patchDoc({ scale }, d.key);
-  }, [scale, d.scale, d.key]);
+    if (Math.abs(scale - d.scale) > 1e-4 || fitPage !== d.fitPage) st().patchDoc({ scale, fitPage }, d.key);
+  }, [scale, fitPage, d.scale, d.fitPage, d.key]);
 
   const lay = useMemo(() => layout(d.pages, scale, size.w), [d.pages, scale, size.w]);
 
@@ -95,8 +99,7 @@ export function Viewer({ d }: { d: Doc }) {
   // pointer (wheel) or the middle of the view.
   const anchor = useRef<{ x: number; y: number; scale: number; top: number; left: number } | null>(null);
   const lastScale = useRef(scale);
-  /** The view has been laid out at its real size once (before that, a zoom change is no move). */
-  const sized = useRef(false);
+  // Before the view is laid out at its real size, a zoom change is no move.
   useLayoutEffect(() => {
     const el = scroller.current;
     const prev = lastScale.current;
@@ -104,9 +107,9 @@ export function Viewer({ d }: { d: Doc }) {
     const first = !sized.current;
     if (size.w > 0) sized.current = true;
     if (first && el && size.w > 0) {
-      // Back to the page the tab was on (after the page organizer, another tab).
+      // Back to the spot the tab was on (after the page organizer, another tab).
       const g = lay.geoms[page.current];
-      if (g && page.current > 0) el.scrollTop = g.top - 8;
+      if (g) el.scrollTop = g.top + d.pageOffset * g.height;
       return;
     }
     if (!el || prev === scale) return;
@@ -118,6 +121,19 @@ export function Viewer({ d }: { d: Doc }) {
     // Only the zoom and the first real size move the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, size.w]);
+
+  // Hidden (the page organizer, another tab): remember the spot to come back to.
+  const geoms = useRef(lay.geoms);
+  geoms.current = lay.geoms;
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const key = d.key;
+    return () => {
+      const doc = st().docs.find((x) => x.key === key);
+      const g = doc && geoms.current[doc.page];
+      if (el && g && sized.current) st().patchDoc({ pageOffset: (el.scrollTop - g.top) / g.height }, key);
+    };
+  }, [d.key]);
 
   // ⌘ / Ctrl + wheel (and the trackpad's pinch) zooms at the pointer.
   useEffect(() => {
@@ -168,7 +184,22 @@ export function Viewer({ d }: { d: Doc }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d.scrollTo?.seq]);
 
-  // The pages near the view are drawn; the rest are empty space.
+  // Every page has a blank sheet, so a fast scroll (the OS scrolls before
+  // onScroll comes) shows white pages, not the background, until the pages
+  // near the view are drawn over them.
+  const sheets = useMemo(
+    () =>
+      lay.geoms.map((g) => (
+        <div
+          key={g.uid}
+          className="absolute bg-white shadow-lg shadow-black/40"
+          style={{ left: g.left, top: g.top, width: g.width, height: g.height }}
+        />
+      )),
+    [lay.geoms],
+  );
+
+  // The pages near the view are drawn over their sheets.
   const visible = useMemo(() => {
     const from = scrollTop - size.h;
     const to = scrollTop + size.h * 2;
@@ -306,6 +337,7 @@ export function Viewer({ d }: { d: Doc }) {
       tabIndex={-1}
     >
       <div className="relative" style={{ width: lay.width, height: lay.height }}>
+        {sheets}
         {visible.map(({ g, i }) => (
           <PageView
             key={g.uid}

@@ -12,6 +12,16 @@ import { Overlay } from "./Overlay";
 const MAX_CANVAS = 4096 * 4096;
 
 /**
+ * Lets go of a canvas's pixels now. Safari (the macOS WebView) keeps them
+ * until garbage collection and has a cap on all canvases together; past it,
+ * new pages draw nothing. pdf.js's own viewer does the same.
+ */
+function release(canvas: HTMLCanvasElement) {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+/**
  * One page: pdf.js draws it on a canvas, with its text (for selecting and
  * searching) and its form fields and links in layers over it; our
  * annotations and tools are over those (Overlay).
@@ -78,11 +88,14 @@ export const PageView = memo(function PageView({
       });
       task.promise.then(
         () => {
-          if (gone || !wrap.current) return;
+          if (gone || !wrap.current) return release(canvas);
+          const old = wrap.current.querySelector("canvas");
           wrap.current.replaceChildren(canvas);
+          if (old) release(old);
           drawn.current = true;
         },
         (e) => {
+          release(canvas);
           if ((e as Error)?.name !== "RenderingCancelledException") warn("render", e);
         },
       );
@@ -94,6 +107,15 @@ export const PageView = memo(function PageView({
       task?.cancel();
     };
   }, [page, px, geom.rotation]);
+
+  // A page scrolled out of the way gives its picture's memory back at once.
+  useEffect(() => {
+    const div = wrap.current;
+    return () => {
+      const c = div?.querySelector("canvas");
+      if (c) release(c);
+    };
+  }, []);
 
   // The text, for selecting and searching. Laid out again after a zoom.
   useEffect(() => {
@@ -247,7 +269,7 @@ export const PageView = memo(function PageView({
 
   return (
     <div
-      className="page absolute bg-white shadow-lg shadow-black/40"
+      className="page absolute bg-white"
       data-page-uid={item.uid}
       data-page-number={pageNumber}
       style={

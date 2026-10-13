@@ -102,8 +102,15 @@ export interface Doc {
   zoom: Zoom;
   /** The zoom as a number, worked out by the viewer for the window's size. */
   scale: number;
+  /** The page the fit modes were worked out for (layout.ts fitScale). */
+  fitPage: number;
   /** The page most in view. */
   page: number;
+  /**
+   * How far the view's top was into that page (a fraction of its height)
+   * when the view was last hidden: shown again, it comes back to the spot.
+   */
+  pageOffset: number;
   selectedAnnot: string | null;
   /** Picked pages in the sidebar and the page organizer. */
   selectedPages: string[];

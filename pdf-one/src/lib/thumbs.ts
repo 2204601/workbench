@@ -63,6 +63,8 @@ export function thumbnail(source: number, index: number, rotation: number, width
           canvas.height = Math.ceil(viewport.height);
           await page.render({ canvas, viewport }).promise;
           const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+          // Its pixels now (Safari keeps them until garbage collection: PageView).
+          canvas.width = canvas.height = 0;
           if (!blob) return resolve(null);
           const url = URL.createObjectURL(blob);
           remember(key, url);

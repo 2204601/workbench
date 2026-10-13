@@ -138,8 +138,13 @@ textarea {
 /* The pages (src/components/Viewer.tsx, PageView.tsx). pdf.js's viewer
    styles (pdf_viewer.css) draw its text and form layers; these fit them to
    our own page boxes. Layers, bottom to top: the picture, the text (for
-   selecting), the form fields and links, our annotations (Overlay). */
+   selecting), the form fields and links, our annotations (Overlay).
+   pdf_viewer.css isn't in a layer, so it wins over Tailwind's utilities
+   (@layer utilities): its `position: relative` on .page beat our
+   `absolute`, and each page was pushed down by the pages put in before it,
+   leaving gaps and making the view jump while scrolling. Set here. */
 .pdfViewer .page {
+  position: absolute;
   margin: 0;
   border: 0;
 }

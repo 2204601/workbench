@@ -102,8 +102,9 @@ export function Organizer({ d }: { d: Doc }) {
                 onPointerDown={(e) => onPointerDown(e, p.uid)}
                 onClick={(e) => !wasDrag() && pickPage(p.uid, e, isMac)}
                 onDoubleClick={() => {
+                  // The view, shown again, comes back to this spot (Viewer).
+                  st().patchDoc({ page: i, pageOffset: 0 });
                   st().setOrganizer(false);
-                  st().patchDoc((x) => ({ scrollTo: { page: i, seq: (x.scrollTo?.seq ?? 0) + 1 } }));
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
