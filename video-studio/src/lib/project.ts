@@ -1,5 +1,5 @@
 /**
- * The edit, as saved in a .cutter file: the media used, the clips in order
+ * The edit, as saved in a .vstudio file: the media used, the clips in order
  * on the video track, and the texts and stamps over them. Plain data: every
  * change makes a new Project (undo keeps the old ones, store.ts).
  */

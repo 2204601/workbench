@@ -308,7 +308,7 @@ export function stepFrames(n: number) {
 
 // ---------------------------------------------------------------- files
 
-const PROJECT_FILTER = [{ name: "Video Studio プロジェクト", extensions: ["cutter"] }];
+const PROJECT_FILTER = [{ name: "Video Studio プロジェクト", extensions: ["vstudio"] }];
 
 /** False when the user keeps the unsaved changes. */
 async function confirmDiscard(): Promise<boolean> {
@@ -344,9 +344,9 @@ export async function openProject(path?: string) {
 export async function saveProject(as = false): Promise<boolean> {
   let path = st().path;
   if (as || !path) {
-    const picked = await save({ title: "プロジェクトを保存", filters: PROJECT_FILTER, defaultPath: path ?? "無題.cutter" });
+    const picked = await save({ title: "プロジェクトを保存", filters: PROJECT_FILTER, defaultPath: path ?? "無題.vstudio" });
     if (!picked) return false;
-    path = picked.endsWith(".cutter") ? picked : `${picked}.cutter`;
+    path = picked.endsWith(".vstudio") ? picked : `${picked}.vstudio`;
   }
   const p = proj();
   try {
@@ -378,7 +378,7 @@ export function guardClose(): () => void {
 export async function exportVideo(width: number, height: number, quality: Quality) {
   const p = proj();
   if (!p.clips.length) return;
-  const stem = st().path ? baseName(st().path!).replace(/\.cutter$/, "") : "動画";
+  const stem = st().path ? baseName(st().path!).replace(/\.vstudio$/, "") : "動画";
   const output = await save({ title: "動画を書き出す", filters: [{ name: "MP4 動画", extensions: ["mp4"] }], defaultPath: `${stem}.mp4` });
   if (!output) return;
   const out = output.toLowerCase().endsWith(".mp4") ? output : `${output}.mp4`;

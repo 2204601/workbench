@@ -12,7 +12,7 @@ AI と人が実装前に確認する **現在の前提**。機能要件、ロー
 | 動画の処理 | 同梱の ffmpeg（ffmpeg-static `b6.1.1` の配布物。中の版は Windows 6.1.1、macOS 6.0、開発用の Linux 7.0.2。GPL build、libx264 入り）を sidecar（`bundle.externalBin`）で動かす。プレビューはウィンドウの動画再生を使い、再生できない形式だけ ffmpeg でプレビュー用のコピーを作る |
 | 書き出しの形式 | MP4（H.264 / AAC）だけ |
 | 編集の範囲 | キリはり、文字、スタンプ、切り替え、クリップの音量（利用者の依頼「キリはりして、スタンプや文字を入れたり、切り替えのアニメーション」）。BGM のトラック、複数の映像トラック、速さ、色の調整は入れていない |
-| データの置き場 | プロジェクトは利用者が選んだ `.cutter`（JSON、素材はフルパス）。サムネイル・波形・コピーはアプリのキャッシュフォルダ。`settings.json`（アップデートの自動確認） |
+| データの置き場 | プロジェクトは利用者が選んだ `.vstudio`（JSON、素材はフルパス）。サムネイル・波形・コピーはアプリのキャッシュフォルダ。`settings.json`（アップデートの自動確認） |
 | 外との接続 | なし（自分から出る通信は updater の feed だけ） |
 | 配布の形 | workbench 同居（Platform Optional「複数ツール同居リポジトリ」。tag `video-studio-v*`、feed は固定リリース `video-studio-updater`） |
 | 識別子 | `dev.workbench.video-studio`（一度配布したら変えない） |

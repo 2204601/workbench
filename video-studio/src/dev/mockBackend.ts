@@ -89,13 +89,13 @@ async function handle(cmd: string, a: Record<string, unknown>): Promise<unknown>
     case "plugin:dialog|open": {
       const o = (a.options ?? {}) as { multiple?: boolean; filters?: { extensions: string[] }[] };
       const exts = o.filters?.flatMap((f) => f.extensions) ?? [];
-      if (exts.includes("cutter")) return [...projects.keys()].pop() ?? null;
+      if (exts.includes("vstudio")) return [...projects.keys()].pop() ?? null;
       const files = await pick(!!o.multiple, "video/*,image/*");
       return o.multiple ? files : (files?.[0] ?? null);
     }
     case "plugin:dialog|save": {
       const o = (a.options ?? {}) as { defaultPath?: string };
-      return o.defaultPath ?? "無題.cutter";
+      return o.defaultPath ?? "無題.vstudio";
     }
     case "plugin:dialog|ask":
     case "plugin:dialog|confirm":

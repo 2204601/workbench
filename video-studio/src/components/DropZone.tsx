@@ -8,7 +8,7 @@ import { useStore } from "../store";
 
 /**
  * Files dropped from Finder / Explorer are added, through Tauri's drop
- * events (Platform UI §6: not HTML5 drag and drop). A .cutter file opens.
+ * events (Platform UI §6: not HTML5 drag and drop). A .vstudio file opens.
  * While something is dragged over the window, the whole window says so.
  */
 export function useFileDrop(): boolean {
@@ -25,7 +25,7 @@ export function useFileDrop(): boolean {
         else if (p.type === "drop") {
           setOver(false);
           if (useStore.getState().exporting) return;
-          const project = p.paths.find((x) => x.toLowerCase().endsWith(".cutter"));
+          const project = p.paths.find((x) => x.toLowerCase().endsWith(".vstudio"));
           if (project) void openProject(project);
           else void addFiles(p.paths);
         }
@@ -46,7 +46,7 @@ export function DropOverlay() {
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent text-accent">
         <Film size={40} strokeWidth={1.5} />
         <div className="text-base">ドロップして追加</div>
-        <div className="text-xs text-dim">動画・写真はタイムラインの最後に並びます。.cutter はプロジェクトとして開きます</div>
+        <div className="text-xs text-dim">動画・写真はタイムラインの最後に並びます。.vstudio はプロジェクトとして開きます</div>
       </div>
     </div>
   );

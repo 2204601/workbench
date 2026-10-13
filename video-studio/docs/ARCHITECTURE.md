@@ -10,7 +10,7 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
   - 文字とスタンプは `overlayRender.ts` が canvas に描いた絵を、プレビューはそのまま、書き出しは PNG にして ffmpeg に重ねさせる。フォントや絵文字の違いが出ない
   - アニメーション（`anim.ts`）と切り替え（`transitions.ts`）は、ffmpeg の式と `xfade` に合わせて描く。片方を変えたら、もう片方も変える（`anim.test.ts` と `render.rs` のテストは同じ時刻の値を見る）
   - 時間はフレームで数え、`timeline.ts` の `layout` と `render.rs` の `frames` は同じ丸め方をする（同じ例でテストしている）
-- ファイルに書くのは、プロジェクト（ユーザーが選んだ `.cutter` だけ）、書き出し（ユーザーが選んだ `.mp4`）、キャッシュ（サムネイル、波形、コピー）、設定、ログ
+- ファイルに書くのは、プロジェクト（ユーザーが選んだ `.vstudio` だけ）、書き出し（ユーザーが選んだ `.mp4`）、キャッシュ（サムネイル、波形、コピー）、設定、ログ
 
 ## 2. 層
 
@@ -59,7 +59,7 @@ video-studio/
 | `read_image` | `path` | 写真のバイト列（`probe_media` したものだけ） |
 | `export_video` | `job`, `output` | 書き出したパスとかかった時間。実行中は `export-progress`。同時に 1 つ |
 | `cancel_export` | | |
-| `save_project` / `load_project` | `path`(, `text`) | `.cutter` だけ |
+| `save_project` / `load_project` | `path`(, `text`) | `.vstudio` だけ |
 | `reveal_path` / `ffmpeg_version` | | |
 | `get_app_settings` / `set_app_settings` / `system_proxy` / `reveal_log` | | shell |
 

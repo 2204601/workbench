@@ -17,7 +17,7 @@
   - `src/lib/transitions.ts` ↔ ffmpeg の `xfade`（`render.rs` の `TRANSITIONS`。新しい種類は ffmpeg で向きを確かめてから）
   - `src/lib/timeline.ts` の `layout` ↔ `render.rs` の `frames`（同じ例のテスト）
   - `src/lib/api.ts` の `ExportJob` ↔ `render.rs` の `ExportJob`（`tests/ipc.rs`）
-- 素材のファイルは読むだけ。書くのはユーザーが選んだ `.cutter` と `.mp4`、キャッシュ、設定、ログだけ
+- 素材のファイルは読むだけ。書くのはユーザーが選んだ `.vstudio` と `.mp4`、キャッシュ、設定、ログだけ
 - ffmpeg に渡す文字列は `render.rs` で組み立て、名前は許したものだけ、数字は有限の値だけ。シェルは通さない
 - 同梱の ffmpeg の版を変えるときは `scripts/fetch-ffmpeg.mjs` の RELEASE と SHA-256、README「ffmpeg について」、decisions を一緒に直し、`npm test`（本物の ffmpeg で書き出すテストがある）を通す
 - 操作はコマンド表 `src/lib/commands.ts` にまず足す

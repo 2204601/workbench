@@ -174,10 +174,10 @@ fn probe_prepare_export() {
 }
 
 #[test]
-fn projects_save_only_as_cutter_files() {
+fn projects_save_only_as_vstudio_files() {
     let dir = tempfile::tempdir().unwrap();
     let ui = ui();
-    let p = dir.path().join("my.cutter").to_string_lossy().into_owned();
+    let p = dir.path().join("my.vstudio").to_string_lossy().into_owned();
     ui.call(
         "save_project",
         json!({ "path": p, "text": "{\"version\":1}" }),

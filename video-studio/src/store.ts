@@ -83,7 +83,7 @@ interface State {
   project: Project;
   /** The project as last saved or opened: unsaved changes when it differs. */
   saved: Project;
-  /** The .cutter file, once saved or opened. */
+  /** The .vstudio file, once saved or opened. */
   path: string | null;
   past: Project[];
   future: Project[];

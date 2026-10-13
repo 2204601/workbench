@@ -32,7 +32,7 @@ export function Toolbar() {
   const aspect = useStore((s) => aspectOf(s.project));
   const canExport = useStore((s) => s.project.clips.length > 0 && !s.exporting);
   const openDialog = useStore((s) => s.openDialog);
-  const name = path ? baseName(path).replace(/\.cutter$/, "") : "無題のプロジェクト";
+  const name = path ? baseName(path).replace(/\.vstudio$/, "") : "無題のプロジェクト";
 
   return (
     <div

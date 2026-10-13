@@ -281,7 +281,7 @@ pub fn cancel_export(state: State<'_, AppState>) {
 // ---------------------------------------------------------------- files
 
 /// The project file's extension (ファイル › 保存).
-pub const PROJECT_EXT: &str = "cutter";
+pub const PROJECT_EXT: &str = "vstudio";
 
 fn project_path(path: &str) -> CmdResult<PathBuf> {
     let p = PathBuf::from(path);
