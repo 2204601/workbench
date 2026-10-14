@@ -39,3 +39,9 @@ core-foundation-sys = "0.8"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Ole", "Win32_System_Registry", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 # System proxy lookup (WinHTTP, PAC) for the updater, see proxy.rs.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
+
+# drag (used by tauri-plugin-drag) with one change: a Move drag also allows
+# Copy, so apps that only take copies (Teams, VS Code) accept it.
+# See ../vendor/drag/SHELF_PATCH.md.
+[patch.crates-io]
+drag = { path = "../vendor/drag" }

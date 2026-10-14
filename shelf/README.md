@@ -67,6 +67,8 @@ Shelf のアイテムを、移動先のフォルダやアプリへドラッグ�
 - ヘッダーの「**移動** / **コピー**」ボタンで、出したときの動作を切り替えます（既定は移動）
 - **Alt**（macOS は **Option**）を押しながらドラッグすると、その回だけ逆の動作になります
 - 移動で出したファイルは、Shelf からも自動で消えます
+- 「移動」のときも、ファイルを動かさずに受け取るアプリ（Teams、VS Code、ブラウザなど）へはそのまま出せます。その場合はコピーとして渡り、元のファイルも棚もそのまま残ります
+- 「移動」で Finder / エクスプローラへ出したとき、同じディスクの中なら移動、USB メモリなど別のディスクへはコピーになります（Finder / エクスプローラの既定どおり）。別のディスクへ移動したいときは **⌘ Command**（Windows は **Shift**）を押しながらドロップします
 
 ### 一緒に置いたファイルはひとまとまりに
 
@@ -188,7 +190,7 @@ npm run tauri build -- --config /tmp/no-updater.json
 | `src-tauri/icons/` | アプリアイコン（`app-icon.svg` から `npx tauri icon` で生成） |
 | `src-tauri/icons/tray/`, `tray-icon.svg`, `src-tauri/src/tray_icon.rs` | メニューバー / タスクトレイの白黒のアイコン。macOS はテンプレート画像（44px）、Windows はタスクバーの明るさに合わせて白か黒（32px）。PNG は `tray-icon.svg` を透明背景で書き出したもの |
 
-アプリの外へファイルをドラッグして出すには OS ネイティブのドラッグ操作が必要なため、[tauri-plugin-drag](https://github.com/crabnebula-dev/drag-rs) を使っています。
+アプリの外へファイルをドラッグして出すには OS ネイティブのドラッグ操作が必要なため、[tauri-plugin-drag](https://github.com/crabnebula-dev/drag-rs) を使っています。その下の `drag` クレートは、「移動」のドラッグでコピーも許すように 1 か所だけ直した版を `vendor/drag/` に置き、`[patch.crates-io]` で差し替えています（理由と変更点は `vendor/drag/SHELF_PATCH.md`）。
 
 ### CI
 
