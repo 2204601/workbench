@@ -731,7 +731,8 @@ export const Overlay = memo(function Overlay({
     st().amend((x) => updateAnnot(x, a.id, { rect: r }));
   };
 
-  // The selection's frame and handles.
+  // The selection's frame and handles. They set pointer-events themselves:
+  // the layer is "none" unless a drawing tool is in hand, and children inherit it.
   let frame: React.ReactNode = null;
   const sel = selected ? annots?.find((a) => a.id === selected) : null;
   if (sel && selecting) {
@@ -740,6 +741,8 @@ export const Overlay = memo(function Overlay({
       const [x1, y1, x2, y2] = rectToScreen(matrix, b);
       const pad = sel.kind === "highlight" || sel.kind === "underline" || sel.kind === "strikeout" ? 2 : 0;
       const handles = !readOnly && BOXED.has(sel.kind) && editing !== sel.id;
+      // On a small mark the eight handles would pile up on each other: the corners only.
+      const small = x2 - x1 < 48 || y2 - y1 < 48;
       frame = (
         <>
           <div
@@ -747,7 +750,7 @@ export const Overlay = memo(function Overlay({
             style={{ left: x1 - pad - 1, top: y1 - pad - 1, width: x2 - x1 + 2 * pad + 2, height: y2 - y1 + 2 * pad + 2 }}
           />
           {handles &&
-            HANDLES.map((h) => {
+            HANDLES.filter((h) => !small || h.length === 2).map((h) => {
               const hx = h.includes("w") ? x1 : h.includes("e") ? x2 : (x1 + x2) / 2;
               const hy = h.includes("n") ? y1 : h.includes("s") ? y2 : (y1 + y2) / 2;
               return (
@@ -755,7 +758,7 @@ export const Overlay = memo(function Overlay({
                   key={h}
                   onPointerDown={(e) => onHandleDown(e, sel, h)}
                   className="absolute h-2.5 w-2.5 rounded-[2px] border border-accent bg-white"
-                  style={{ left: hx - 5, top: hy - 5, cursor: `${h}-resize` }}
+                  style={{ left: hx - 5, top: hy - 5, cursor: `${h}-resize`, pointerEvents: "auto" }}
                 />
               );
             })}
@@ -768,7 +771,7 @@ export const Overlay = memo(function Overlay({
                   key={end}
                   onPointerDown={(e) => onEndDown(e, sel, end as 0 | 1)}
                   className="absolute h-3 w-3 cursor-crosshair rounded-full border border-accent bg-white"
-                  style={{ left: hx - 6, top: hy - 6 }}
+                  style={{ left: hx - 6, top: hy - 6, pointerEvents: "auto" }}
                 />
               );
             })}
