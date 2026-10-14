@@ -1,6 +1,6 @@
 [package]
 name = "pdf-one"
-version = "0.2.1"
+version = "0.2.2"
 description = "PDF を見る・ページを整理する・書き込む・フォームに入力する"
 authors = ["2204601"]
 edition = "2021"
