@@ -4,9 +4,11 @@
 
 ## 開発の基準
 
-開発の Standard・Recommendations・Playbook は **`../../desktop-platform/ai/ONBOARDING.md`** を最初に参照すること（採用 tag：v0.2.0）。Web アプリ向けの ai-dev-platform は参照しない。
+開発の Standard・Recommendations・Playbook は **`../../desktop-platform/ai/ONBOARDING.md`** を最初に参照すること（採用 tag：v0.3.0）。Web アプリ向けの ai-dev-platform は参照しない。
 
 実装へ大きく影響する前提は `decisions/project-context.md` にある。先に読む。Standard から外れているところは `decisions/` の ADR にある。
+
+モデルは desktop-platform の Governance §3.1 のティアで使い分ける。設計・難しい障害調査・重要なレビューは本体のモデル、通常の実装と文書は Sonnet、テスト実行・スクリーンショット・lint などの確認は Haiku のサブエージェントへ委譲する。委譲した結果は本体が確認してから次へ進む。
 
 ## このツール固有
 
