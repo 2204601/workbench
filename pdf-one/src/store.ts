@@ -203,7 +203,8 @@ interface State {
 
   addDoc: (d: Doc) => void;
   removeDoc: (key: string) => void;
-  setActive: (key: string) => void;
+  /** null: no tab chosen: the start screen, with the open tabs still there (the + button). */
+  setActive: (key: string | null) => void;
   /** Changes the active tab without undo (view state). */
   patchDoc: (patch: Partial<Doc> | ((d: Doc) => Partial<Doc>), key?: string) => void;
   /** Changes pages or annotations, undoably. */

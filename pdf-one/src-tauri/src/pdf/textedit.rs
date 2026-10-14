@@ -49,6 +49,9 @@ pub struct Line {
     /// "#rrggbb".
     pub color: String,
     pub font: String,
+    /// The characters the line's own font can write (new text in them keeps
+    /// the font; the others are written in the app's font). None: too many to list.
+    pub chars: Option<String>,
     pub editable: bool,
     /// Why it can't be fixed (shown to the user, in Japanese).
     pub why: String,
@@ -91,6 +94,7 @@ fn apply_pt(m: M, x: f64, y: f64) -> (f64, f64) {
 // ------------------------------------------------------------------- fonts
 
 /// What it takes to read a string of a font as text and measure it.
+#[derive(Debug)]
 struct FontInfo {
     name: String,
     /// Two-byte codes (an Identity-H CID font) rather than one.
@@ -108,7 +112,33 @@ struct FontInfo {
     fixed_pitch: bool,
 }
 
+/// Fonts that can write this many different characters are not listed to the screen.
+const MAX_LISTED: usize = 4000;
+
 impl FontInfo {
+    /// The characters this font can write, one each; None when there are too
+    /// many to be worth sending (a font with the whole alphabet of a language).
+    fn chars(&self) -> Option<String> {
+        let mut set: Vec<char> = self.unicode.values().filter_map(|s| single(s)).collect();
+        set.sort_unstable();
+        set.dedup();
+        (set.len() <= MAX_LISTED).then(|| set.into_iter().collect())
+    }
+
+    /// Character → the code that writes it (the lowest, when several do).
+    fn reverse(&self) -> HashMap<char, u32> {
+        let mut out: HashMap<char, u32> = HashMap::new();
+        for (code, s) in &self.unicode {
+            if let Some(c) = single(s) {
+                let e = out.entry(c).or_insert(*code);
+                if code < e {
+                    *e = *code;
+                }
+            }
+        }
+        out
+    }
+
     fn unusable(name: &str, why: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -144,6 +174,15 @@ impl FontInfo {
             }
         }
         self.default_width
+    }
+}
+
+/// The one character `s` is, if it is exactly one.
+fn single(s: &str) -> Option<char> {
+    let mut it = s.chars();
+    match (it.next(), it.next()) {
+        (Some(c), None) => Some(c),
+        _ => None,
     }
 }
 
@@ -600,6 +639,10 @@ struct Run {
     color: [f64; 3],
     font_key: Vec<u8>,
     font: String,
+    info: Option<Rc<FontInfo>>,
+    /// Character and word spacing in force.
+    tc: f64,
+    tw: f64,
     /// The distance the operator moved the text position, in text space.
     advance: f64,
     /// Font size and horizontal scale: what `advance` is measured in.
@@ -833,6 +876,9 @@ fn trace(doc: &Document, fonts: &HashMap<Vec<u8>, Rc<FontInfo>>, ops: &[Operatio
                         color: gs.fill,
                         font_key,
                         font: font.as_ref().map(|f| f.name.clone()).unwrap_or_default(),
+                        info: font.clone(),
+                        tc: gs.tc,
+                        tw: gs.tw,
                         advance,
                         tfs,
                         th: gs.th,
@@ -943,6 +989,7 @@ fn group(runs: &[Run]) -> Vec<Line> {
             size: r.size,
             color: color_hex(r.color),
             font: r.font.clone(),
+            chars: r.info.as_ref().and_then(|f| f.chars()),
             editable: r.editable,
             why,
         });
@@ -997,6 +1044,8 @@ pub fn apply(doc: &mut Document, page: ObjectId, changes: &[Change], font: &mut 
     let font_id = font.font_ref(doc);
     for (c, first) in drawn {
         let size = if c.size.is_finite() && c.size > 0.5 { c.size } else { first.size };
+        // The line's own font writes what it can; the rest is in the app's font.
+        let own = first.info.as_ref().map(|f| (f.clone(), f.reverse()));
         for (n, line) in c.text.split('\n').enumerate() {
             if line.is_empty() {
                 continue;
@@ -1004,14 +1053,38 @@ pub fn apply(doc: &mut Document, page: ObjectId, changes: &[Change], font: &mut 
             let y = first.y - n as f64 * size * 1.2;
             out.push(Operation::new("q", vec![]));
             out.push(Operation::new("BT", vec![]));
-            out.push(Operation::new("Tf", vec![Object::Name(NEW_FONT.as_bytes().to_vec()), real(size)]));
             out.push(Operation::new("rg", c.color.iter().map(|v| real(*v)).collect()));
             out.push(Operation::new("Tm", vec![real(1.0), real(0.0), real(0.0), real(1.0), real(first.x), real(y)]));
-            let encoded = font.encode(line);
-            out.push(Operation::new(
-                "Tj",
-                vec![Object::String(decode_hex(&encoded), lopdf::StringFormat::Hexadecimal)],
-            ));
+            for (uses_own, piece) in split_by_font(line, own.as_ref().map(|(_, r)| r)) {
+                if uses_own {
+                    let (info, reverse) = own.as_ref().expect("own font");
+                    // As the line was set: its spacing and width scale.
+                    out.push(Operation::new("Tf", vec![Object::Name(first.font_key.clone()), real(size)]));
+                    out.push(Operation::new("Tc", vec![real(first.tc)]));
+                    out.push(Operation::new("Tw", vec![real(first.tw)]));
+                    out.push(Operation::new("Tz", vec![real(first.th * 100.0)]));
+                    let mut bytes = Vec::with_capacity(piece.len() * 2);
+                    for ch in piece.chars() {
+                        let code = reverse[&ch];
+                        if info.wide {
+                            bytes.extend_from_slice(&(code as u16).to_be_bytes());
+                        } else {
+                            bytes.push(code as u8);
+                        }
+                    }
+                    out.push(Operation::new("Tj", vec![Object::String(bytes, lopdf::StringFormat::Hexadecimal)]));
+                } else {
+                    out.push(Operation::new("Tf", vec![Object::Name(NEW_FONT.as_bytes().to_vec()), real(size)]));
+                    out.push(Operation::new("Tc", vec![real(0.0)]));
+                    out.push(Operation::new("Tw", vec![real(0.0)]));
+                    out.push(Operation::new("Tz", vec![real(100.0)]));
+                    let encoded = font.encode(&piece);
+                    out.push(Operation::new(
+                        "Tj",
+                        vec![Object::String(decode_hex(&encoded), lopdf::StringFormat::Hexadecimal)],
+                    ));
+                }
+            }
             out.push(Operation::new("ET", vec![]));
             out.push(Operation::new("Q", vec![]));
         }
@@ -1023,6 +1096,20 @@ pub fn apply(doc: &mut Document, page: ObjectId, changes: &[Change], font: &mut 
     let stream_id = doc.add_object(stream);
     doc.get_dictionary_mut(page).map_err(|e| e.to_string())?.set("Contents", Object::Reference(stream_id));
     install_font(doc, page, font_id)
+}
+
+/// `line` cut into runs of characters the line's own font can write (`true`)
+/// and the rest. Without an own font, all of it is the app's.
+fn split_by_font(line: &str, own: Option<&HashMap<char, u32>>) -> Vec<(bool, String)> {
+    let mut out: Vec<(bool, String)> = Vec::new();
+    for ch in line.chars() {
+        let uses_own = own.is_some_and(|r| r.contains_key(&ch));
+        match out.last_mut() {
+            Some((u, s)) if *u == uses_own => s.push(ch),
+            _ => out.push((uses_own, ch.to_string())),
+        }
+    }
+    out
 }
 
 fn real(v: f64) -> Object {
@@ -1339,6 +1426,61 @@ mod tests {
         // Helvetica fallback: two bytes "Hi" in WinAnsi.
         assert_eq!(shown[0], b"Hi");
         let _ = StringFormat::Hexadecimal;
+    }
+
+    #[test]
+    fn new_text_keeps_the_lines_own_font_where_it_can() {
+        let mut doc = Document::with_version("1.7");
+        let f = helvetica(&mut doc);
+        let (mut doc, page) = page_with("BT /F1 12 Tf 0 Tc 0 Tw 72 700 Td (Hello World) Tj ET", vec![f], Some(doc));
+        let l = lines(&doc, page).unwrap();
+        // Helvetica writes ASCII (and WinAnsi's accented letters), nothing else.
+        let chars = l[0].chars.clone().unwrap();
+        assert!(chars.contains('H') && chars.contains('ü') && !chars.contains('世'));
+
+        let mut font = Embedder::new(None);
+        let change = Change { ops: l[0].ops.clone(), text: "Hello 世界!".into(), size: 12.0, color: [0.0; 3] };
+        apply(&mut doc, page, &[change], &mut font).unwrap();
+        let ops = Content::decode(&doc.get_page_content(page)).unwrap().operations;
+        // After the silent spacer: Tj "Hello " in F1, a Tj for 世界 in the app's font, Tj "!" in F1.
+        let mut current: Option<Vec<u8>> = None;
+        let mut shown: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+        for o in &ops {
+            match o.operator.as_str() {
+                "Tf" => {
+                    if let Some(Object::Name(n)) = o.operands.first() {
+                        current = Some(n.clone());
+                    }
+                }
+                "Tj" => {
+                    if let (Some(f), Some(s)) = (&current, o.operands.first().and_then(string_of)) {
+                        shown.push((f.clone(), s.to_vec()));
+                    }
+                }
+                _ => {}
+            }
+        }
+        // The old line is silent (a TJ), so every Tj left belongs to the new one.
+        assert_eq!(shown.len(), 3, "{shown:?}");
+        assert_eq!(shown[0], (b"F1".to_vec(), b"Hello ".to_vec()));
+        assert_eq!(shown[1].0, NEW_FONT.as_bytes().to_vec());
+        assert_eq!(shown[2], (b"F1".to_vec(), b"!".to_vec()));
+    }
+
+    #[test]
+    fn a_cid_font_writes_its_own_codes() {
+        let mut doc = Document::with_version("1.7");
+        let f = cid_font(&mut doc);
+        let (mut doc, page) = page_with("BT /F1 10 Tf 50 500 Td <00010002> Tj ET", vec![f], Some(doc));
+        let l = lines(&doc, page).unwrap();
+        assert_eq!(l[0].chars.as_deref(), Some(" あい"));
+        let mut font = Embedder::new(None);
+        let change = Change { ops: l[0].ops.clone(), text: "いあ".into(), size: 10.0, color: [0.0; 3] };
+        apply(&mut doc, page, &[change], &mut font).unwrap();
+        let ops = Content::decode(&doc.get_page_content(page)).unwrap().operations;
+        let tj: Vec<&[u8]> =
+            ops.iter().filter(|o| o.operator == "Tj").filter_map(|o| o.operands.first().and_then(string_of)).collect();
+        assert_eq!(tj, [&[0u8, 2, 0, 1][..]]);
     }
 
     #[test]

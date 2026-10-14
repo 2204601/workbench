@@ -217,7 +217,9 @@ fn open_edit_save_and_open_again() {
     let doc = lopdf::Document::load(&fixed).unwrap();
     let body = String::from_utf8_lossy(&doc.get_page_content(doc.get_pages()[&1])).into_owned();
     assert!(!body.contains("(Page 3)"), "{body}");
-    assert!(body.contains("PDFEdit"), "{body}");
+    // Written in the line's own font (Helvetica has every letter), as the hex of "Page three".
+    assert!(body.to_lowercase().contains("<50616765207468726565>"), "{body}");
+    assert!(!body.contains("PDFEdit"), "{body}");
     // Opening the result again: the fixed line reads as ordinary text, and there is no annotation.
     let again = ui.call("open_pdf", json!({ "path": fixed })).unwrap();
     assert_eq!(again["annots"], json!([]));

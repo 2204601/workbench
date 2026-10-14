@@ -1,6 +1,7 @@
 //! Tries the text fixing on a real file: lists the lines of text on a page,
 //! and with a third argument writes a copy where every editable line has
-//! "【直】" put in front of it.
+//! "【直】" put in front of it (or, with EDIT=rev, its characters reversed:
+//! all of them are in the line's own font, so the look stays).
 //!
 //!     cargo run --example lines -- in.pdf 1 [out.pdf]
 
@@ -42,7 +43,11 @@ fn main() {
             id: format!("pdfe-{}", l.ops[0]),
             kind: AnnotKind::Edit,
             runs: l.ops.clone(),
-            text: format!("【直】{}", l.text),
+            text: if std::env::var("EDIT").as_deref() == Ok("rev") {
+                l.text.chars().rev().collect()
+            } else {
+                format!("【直】{}", l.text)
+            },
             font_size: l.size,
             color: l.color.clone(),
             rect: Some(l.rect),

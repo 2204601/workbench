@@ -155,6 +155,7 @@ export function installMockBackend() {
           size,
           color: "#000000",
           font: editable ? "Helvetica" : "KozMinPr6N-Regular",
+          chars: editable ? " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz" : null,
           editable,
           why,
         });

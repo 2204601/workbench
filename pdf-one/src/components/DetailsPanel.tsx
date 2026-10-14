@@ -1,14 +1,15 @@
 import { ArrowUpToLine, Copy, Trash2, X } from "lucide-react";
-import { useRef } from "react";
-import type { Annot, AnnotKind } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import type { Annot, AnnotKind, TextLine } from "../lib/api";
 import { command, plainTitle, runCommand } from "../lib/commands";
 import { updateAnnot } from "../lib/edit";
 import { bytes, formatPdfDate } from "../lib/format";
 import { readingSize } from "../lib/geometry";
 import { KIND_LABEL } from "../lib/hints";
 import { pageBox } from "../lib/layout";
+import { pageLines } from "../lib/textedit";
 import { TEXT_PADDING, textHeight, wrapText } from "../lib/text";
-import { DETAILS, findAnnot, useStore, type Doc, type Tool, type ToolStyle } from "../store";
+import { DETAILS, activeDoc, findAnnot, useStore, type Doc, type Tool, type ToolStyle } from "../store";
 import { CommandButton } from "./CommandButton";
 import { Resizer } from "./Resizer";
 
@@ -273,7 +274,7 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
         </label>
       )}
       {sel && sel.annot.kind === "seal" && <SealWords a={sel.annot} />}
-      {sel && sel.annot.kind === "edit" && <EditInfo a={sel.annot} />}
+      {sel && sel.annot.kind === "edit" && <EditInfo a={sel.annot} uid={sel.uid} />}
       {sel && sel.annot.kind !== "text" && sel.annot.kind !== "edit" && (
         <Field label="コメント">
           <textarea
@@ -320,7 +321,23 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
 }
 
 /** What a fixed line was, and what the file will do with it. */
-function EditInfo({ a }: { a: Annot }) {
+function EditInfo({ a, uid }: { a: Annot; uid: string }) {
+  const page = useStore((s) => activeDoc(s)?.pages.find((p) => p.uid === uid));
+  const [line, setLine] = useState<TextLine | null>(null);
+  const first = a.runs[0];
+  useEffect(() => {
+    if (page?.source == null) return;
+    let gone = false;
+    pageLines(page.source, page.index).then(
+      (ls) => !gone && setLine(ls.find((l) => l.ops[0] === first) ?? null),
+      () => {},
+    );
+    return () => {
+      gone = true;
+    };
+  }, [page?.source, page?.index, first]);
+  // Characters the line's own font doesn't have are written in the app's font.
+  const missing = line?.chars ? [...new Set([...a.text].filter((c) => !line.chars!.includes(c)))].join("") : "";
   return (
     <div className="flex flex-col gap-2 rounded-md bg-raised p-2.5 text-xs leading-relaxed text-dim">
       <div>
@@ -328,8 +345,13 @@ function EditInfo({ a }: { a: Annot }) {
         <div className="mt-0.5 text-sm break-words text-fg">{a.lines[0] || "（なし）"}</div>
       </div>
       <p>
-        保存すると、ページの中のもとの文字が消え、同じ場所に新しい文字が書かれます。新しい文字は、もとのフォントではなく、このアプリの日本語のフォントです。
+        保存すると、ページの中のもとの文字が消え、同じ場所に新しい文字が書かれます。もとのフォント{line?.font ? `（${line.font}）` : ""}にある文字は、そのフォントで書きます。
       </p>
+      {missing && (
+        <p className="text-warn">
+          もとのフォントに無い文字（<span className="text-fg">{missing}</span>）は、日本語のフォントで書きます。ここだけ字の形が変わります。
+        </p>
+      )}
     </div>
   );
 }
