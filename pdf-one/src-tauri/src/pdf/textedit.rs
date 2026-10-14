@@ -251,10 +251,9 @@ fn load_simple(doc: &Document, dict: &Dictionary, name: String) -> FontInfo {
     }
     let table = encoded.unwrap_or_else(base_standard);
     for code in 0..256u32 {
-        if !unicode.contains_key(&code) {
-            if let Some(c) = table[code as usize] {
-                unicode.insert(code, c.to_string());
-            }
+        if let (Some(c), std::collections::hash_map::Entry::Vacant(slot)) = (table[code as usize], unicode.entry(code))
+        {
+            slot.insert(c.to_string());
         }
     }
     FontInfo {
