@@ -8,6 +8,8 @@ PDF を見る・ページを整理する・書き込む・フォームに入力�
 
 実装へ大きく影響する前提は `decisions/project-context.md` にある。先に読む。
 
+モデルは desktop-platform の Governance §3.1 のティアで使い分ける。設計・難しい障害調査・重要なレビューは本体のモデル、通常の実装と文書は Sonnet、テスト実行・スクリーンショット・lint などの確認は Haiku のサブエージェントへ委譲する。委譲した結果は本体が確認してから次へ進む。
+
 ## このツール固有
 
 - 機能仕様：`docs/SPEC.md`。設計の境界：`docs/ARCHITECTURE.md`。これから：`docs/ROADMAP.md`
