@@ -4,7 +4,7 @@ PDF を見る・ページを整理する・書き込む・フォームに入力�
 
 ## 開発の基準
 
-開発の Standard・Recommendations・Playbook は **`../../desktop-platform/ai/ONBOARDING.md`** を最初に参照すること（採用 tag：v0.2.0）。Web アプリ向けの ai-dev-platform は参照しない。
+開発の Standard・Recommendations・Playbook は **`../../desktop-platform/ai/ONBOARDING.md`** を最初に参照すること（採用 tag：v0.3.0）。Web アプリ向けの ai-dev-platform は参照しない。
 
 実装へ大きく影響する前提は `decisions/project-context.md` にある。先に読む。
 
