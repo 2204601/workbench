@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import type { Annot } from "../lib/api";
+import type { Annot, TextLine } from "../lib/api";
 import { addAnnot, moved, raiseAnnot, removeAnnot, resized, updateAnnot } from "../lib/edit";
 import {
   apply,
@@ -18,6 +18,7 @@ import {
 } from "../lib/geometry";
 import { imageUrl } from "../lib/images";
 import { sealLayout } from "../lib/seal";
+import { baselineOf, inside, pageColorAround, pageLines, TEXT_ASCENT } from "../lib/textedit";
 import { LINE_HEIGHT, TEXT_PADDING, textFontFamily, textHeight, textWidth, wrapText } from "../lib/text";
 import { activeDoc, newAnnotId, useStore, type Tool } from "../store";
 import { NotePopup } from "./NotePopup";
@@ -37,7 +38,7 @@ export const useEditing = create<{ id: string | null; fresh: boolean; set: (id: 
 );
 
 /** Tools that draw on the page (they take the pointer from the text). */
-const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "eraser", "seal"];
+const DRAWING: Tool[] = ["text", "note", "ink", "rect", "ellipse", "line", "arrow", "image", "fill", "check", "cross", "dot", "dash", "date", "eraser", "seal", "editText"];
 
 /** Tools that type into a text box. */
 const TYPING: Tool[] = ["text", "fill"];
@@ -97,10 +98,34 @@ function annotBase(tool: Tool): Annot {
     rotation: 0,
     image: null,
     seal: null,
+    runs: [],
     contents: "",
     author: s.author,
     modified: "",
   };
+}
+
+/**
+ * The lines of the page's own text, while 文字を直す is in hand: what can be
+ * fixed, and why not for the rest. `why` is set when the page can't be read at all.
+ */
+function usePageLines(on: boolean, source: number | null | undefined, index: number | undefined) {
+  const [state, setState] = useState<{ lines: TextLine[]; why: string }>({ lines: [], why: "" });
+  useEffect(() => {
+    if (!on || source == null || index === undefined) {
+      setState({ lines: [], why: "" });
+      return;
+    }
+    let gone = false;
+    pageLines(source, index).then(
+      (lines) => !gone && setState({ lines, why: "" }),
+      (e) => !gone && setState({ lines: [], why: String(e) }),
+    );
+    return () => {
+      gone = true;
+    };
+  }, [on, source, index]);
+  return state;
 }
 
 /** When the last ink stroke ended, to join quick strokes into one annotation. */
@@ -142,6 +167,21 @@ export const Overlay = memo(function Overlay({
 
   const drawing = !readOnly && DRAWING.includes(tool);
   const selecting = tool === "select";
+
+  // Finished fixing a line: one left as it was is not a fix, so it goes away.
+  const wasEditing = useRef<string | null>(null);
+  useEffect(() => {
+    const before = wasEditing.current;
+    wasEditing.current = editing;
+    if (!before || before === editing) return;
+    const mine = annots?.find((x) => x.id === before);
+    if (mine && mine.kind === "edit" && mine.text === (mine.lines[0] ?? mine.text)) {
+      st().amend((x) => removeAnnot(x, before));
+      st().patchDoc({ selectedAnnot: null }, docKey);
+    }
+  }, [editing, annots, docKey]);
+  const page = useStore((s) => s.docs.find((d) => d.key === docKey)?.pages.find((p) => p.uid === uid));
+  const { lines: pageText, why: pageTextWhy } = usePageLines(tool === "editText" && !readOnly, page?.source, page?.index);
 
   const local = (e: { clientX: number; clientY: number }): Point => {
     const r = root.current!.getBoundingClientRect();
@@ -220,7 +260,7 @@ export const Overlay = memo(function Overlay({
     select(a.id);
     if (readOnly || editing === a.id) return;
     const markup = a.kind === "highlight" || a.kind === "underline" || a.kind === "strikeout";
-    if (!markup) setDrag({ kind: "move", id: a.id, start: local(e), orig: a, moved: false });
+    if (!markup && a.kind !== "edit") setDrag({ kind: "move", id: a.id, start: local(e), orig: a, moved: false });
   };
 
   const onHandleDown = (e: React.PointerEvent, a: Annot, handle: Handle) => {
@@ -267,6 +307,50 @@ export const Overlay = memo(function Overlay({
     }
   };
 
+  /** Starts fixing a line of the page's own text (a click on it, or on a line already fixed). */
+  const startEdit = (line: TextLine) => {
+    if (!line.editable) {
+      st().toast(`${line.why}。「文字を置く」で上から書き足せます`, true);
+      return;
+    }
+    const canvas = root.current?.parentElement?.querySelector("canvas") ?? null;
+    const box = rectToScreen(matrix, line.rect);
+    const base = annotBase("editText");
+    const a: Annot = {
+      ...base,
+      kind: "edit",
+      color: line.color,
+      opacity: 1,
+      width: 0,
+      fill: pageColorAround(canvas, box, root.current?.clientWidth ?? 0),
+      rect: line.rect,
+      text: line.text,
+      // What the line said, to tell whether it was changed.
+      lines: [line.text],
+      fontSize: Math.round(line.size * 10) / 10,
+      runs: line.ops,
+    };
+    st().checkpoint();
+    st().amend((s) => addAnnot(s, uid, a));
+    st().patchDoc({ selectedAnnot: a.id }, docKey);
+    useEditing.getState().set(a.id, true);
+  };
+
+  const clickText = (p: Point) => {
+    const [x, y] = apply(invert(matrix), p);
+    // A line already fixed: type in it again.
+    const own = [...(annots ?? [])].reverse().find((a) => a.kind === "edit" && a.rect && inside(a.rect, x, y));
+    if (own) {
+      st().patchDoc({ selectedAnnot: own.id }, docKey);
+      useEditing.getState().set(own.id);
+      return;
+    }
+    const line = pageText.find((l) => inside(l.rect, x, y));
+    if (line) startEdit(line);
+    else if (pageTextWhy) st().toast(pageTextWhy, true);
+    else if (!pageText.length) st().toast("このページには、直せる文字がありません。画像になっている文字は直せません", true);
+  };
+
   const onRootDown = (e: React.PointerEvent) => {
     if (!drawing || e.button !== 0) return;
     e.preventDefault();
@@ -277,6 +361,10 @@ export const Overlay = memo(function Overlay({
       if (TYPING.includes(tool)) return;
     }
     const p = local(e);
+    if (tool === "editText") {
+      clickText(p);
+      return;
+    }
     if (tool === "eraser") {
       root.current!.setPointerCapture(e.pointerId);
       dragRef.current = { kind: "erase", erased: false };
@@ -528,7 +616,7 @@ export const Overlay = memo(function Overlay({
       onDoubleClick: (e: React.MouseEvent) => {
         if (!selecting || readOnly) return;
         e.stopPropagation();
-        if (a.kind === "text") useEditing.getState().set(a.id);
+        if (a.kind === "text" || a.kind === "edit") useEditing.getState().set(a.id);
       },
     };
     const stroke = a.color;
@@ -643,6 +731,44 @@ export const Overlay = memo(function Overlay({
             )}
           </g>,
         );
+        break;
+      }
+      case "edit": {
+        if (!a.rect) break;
+        // The old line is covered with the page's colour, the new one written
+        // on top (the saved file has the old one removed, not covered).
+        const [x1, y1, x2, y2] = rectToScreen(matrix, a.rect);
+        const [bx, by] = apply(matrix, baselineOf(a));
+        shapes.push(
+          <g key={a.id} {...events} className={selecting ? "cursor-pointer" : ""} style={{ pointerEvents: selecting ? "auto" : "none" }}>
+            <rect x={Math.min(x1, x2)} y={Math.min(y1, y2)} width={Math.abs(x2 - x1)} height={Math.abs(y2 - y1)} fill={a.fill ?? "#ffffff"} />
+            {editing !== a.id && (
+              <text
+                x={bx}
+                y={by}
+                transform={`rotate(${rotation} ${bx} ${by})`}
+                fill={a.color}
+                fontFamily={textFontFamily()}
+                fontSize={a.fontSize * s}
+                style={{ whiteSpace: "pre", fontKerning: "none" }}
+              >
+                {a.text}
+              </text>
+            )}
+          </g>,
+        );
+        if (editing === a.id) {
+          boxes.push(
+            <EditField
+              key={a.id}
+              a={a}
+              s={s}
+              at={[bx, by]}
+              turn={rotation}
+              minWidth={Math.abs(x2 - x1)}
+            />,
+          );
+        }
         break;
       }
       case "note": {
@@ -848,6 +974,32 @@ export const Overlay = memo(function Overlay({
         {preview}
       </svg>
       {boxes}
+      {tool === "editText" &&
+        !readOnly &&
+        pageText
+          // A line already fixed shows its own box.
+          .filter((l) => !(annots ?? []).some((a) => a.kind === "edit" && a.runs[0] === l.ops[0]))
+          .map((l) => {
+            const [x1, y1, x2, y2] = rectToScreen(matrix, l.rect);
+            return (
+              <div
+                key={l.ops[0]}
+                title={l.editable ? "クリックして文字を直す" : l.why}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (editing) useEditing.getState().set(null);
+                  startEdit(l);
+                }}
+                className={`absolute rounded-[2px] ${
+                  l.editable
+                    ? "cursor-text outline-1 outline-dashed outline-accent/40 hover:bg-accent/15 hover:outline-accent"
+                    : "cursor-not-allowed hover:bg-danger/10"
+                }`}
+                style={{ left: Math.min(x1, x2), top: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) }}
+              />
+            );
+          })}
       {frame}
       {sel && sel.kind === "note" && selecting && <NotePopup annot={sel} matrix={matrix} readOnly={readOnly} />}
     </div>
@@ -888,6 +1040,64 @@ function AnnotImage({ id }: { id: number }) {
     };
   }, [id]);
   return url ? <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full select-none" /> : null;
+}
+
+/**
+ * The field a fixed line is typed in: one line, at the old line's baseline,
+ * turned as the page is shown. Enter or leaving it finishes; a line left as
+ * it was is not a fix, so it goes away.
+ */
+function EditField({ a, s, at, turn, minWidth }: { a: Annot; s: number; at: [number, number]; turn: number; minWidth: number }) {
+  const field = useRef<HTMLInputElement>(null);
+  const touched = useRef(false);
+  const fresh = useRef(useEditing.getState().fresh);
+  const size = a.fontSize * s;
+
+  useLayoutEffect(() => {
+    field.current?.focus();
+    field.current?.select();
+  }, []);
+
+  const wide = Math.max(minWidth + 24 * s, textWidth(a.text, a.fontSize) * s + 24 * s, 90);
+  return (
+    <div className="absolute" style={{ left: at[0], top: at[1], transform: `rotate(${turn}deg)`, transformOrigin: "0 0" }}>
+      <input
+        ref={field}
+        value={a.text}
+        spellCheck={false}
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if ((e.key === "Enter" || e.key === "Escape") && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+            e.preventDefault();
+            useEditing.getState().set(null);
+          }
+        }}
+        onChange={(e) => {
+          const value = e.target.value.replace(/\n/g, " ");
+          if (!touched.current && !fresh.current) st().checkpoint();
+          touched.current = true;
+          st().amend((x) => updateAnnot(x, a.id, { text: value }));
+        }}
+        onBlur={() => useEditing.getState().set(null)}
+        className="absolute rounded-[2px] border border-accent outline-none"
+        style={{
+          left: -3,
+          top: -(TEXT_ASCENT * size) - 3,
+          width: wide,
+          height: size * 1.1 + 6,
+          boxSizing: "border-box",
+          padding: "0 2px",
+          fontFamily: textFontFamily(),
+          fontSize: size,
+          lineHeight: 1,
+          color: a.color,
+          background: a.fill ?? "#ffffff",
+          fontKerning: "none",
+        }}
+      />
+    </div>
+  );
 }
 
 /** A text box: its lines as they will be written, or a field while typing. */

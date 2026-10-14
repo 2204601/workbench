@@ -20,6 +20,7 @@ export const KIND_LABEL: Record<AnnotKind, string> = {
   note: "付箋",
   image: "印鑑・画像",
   seal: "印",
+  edit: "文字の修正",
 };
 
 const BACK = "終わるには「選択」を押すか Esc";
@@ -72,6 +73,8 @@ function toolHint(tool: Tool, sticky: boolean): string {
       return `いま：消しゴム。ペンで書いた線の上をなぞると消えます。${BACK}`;
     case "seal":
       return `いま：印。押したい場所をクリックします。${again}`;
+    case "editText":
+      return `いま：文字を直す。直したい行をクリックして打ちます（Enter か、ほかをクリックで終わり）。画像の文字や特別な文字は直せません。${BACK}`;
   }
 }
 
@@ -85,6 +88,7 @@ export function hint(s: S): string {
   if (sel) {
     const k = sel.annot.kind;
     const label = KIND_LABEL[k];
+    if (k === "edit") return `選んでいます：${label}。ダブルクリックでもう一度直せます。Delete でもとの文字に戻せます`;
     const how =
       k === "highlight" || k === "underline" || k === "strikeout"
         ? "右の「詳細」で色を変えられます"
