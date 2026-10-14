@@ -1055,41 +1055,25 @@ fn silent(r: &Run) -> Vec<Operation> {
     out
 }
 
-/// Adds the new font to the page's /Resources /Font, wherever those live.
+/// Adds the new font to the page's /Resources /Font. The page's resources
+/// (and its font list) may be direct or references, and shared with other
+/// pages: they are copied onto this page with the font added, so the page's
+/// other fonts stay and nothing shared is touched.
 fn install_font(doc: &mut Document, page: ObjectId, font_id: ObjectId) -> Result<(), String> {
-    // The /Resources: direct on the page, or a reference (maybe shared).
-    let res = doc.get_dictionary(page).ok().and_then(|p| p.get(b"Resources").ok()).cloned();
-    let entry = Object::Reference(font_id);
-    match res {
-        Some(Object::Reference(rid)) => {
-            let d = doc.get_dictionary_mut(rid).map_err(|e| e.to_string())?;
-            set_font(d, entry);
+    let dict_of = |doc: &Document, o: Option<&Object>| -> Dictionary {
+        match o {
+            Some(Object::Dictionary(d)) => d.clone(),
+            Some(Object::Reference(id)) => doc.get_dictionary(*id).cloned().unwrap_or_default(),
+            _ => Dictionary::new(),
         }
-        Some(Object::Dictionary(_)) => {
-            let p = doc.get_dictionary_mut(page).map_err(|e| e.to_string())?;
-            if let Ok(Object::Dictionary(d)) = p.get_mut(b"Resources") {
-                set_font(d, entry);
-            }
-        }
-        _ => {
-            let mut d = Dictionary::new();
-            set_font(&mut d, entry);
-            doc.get_dictionary_mut(page).map_err(|e| e.to_string())?.set("Resources", Object::Dictionary(d));
-        }
-    }
-    Ok(())
-}
-
-fn set_font(resources: &mut Dictionary, entry: Object) {
-    // /Font may itself be a reference; copying it into the dictionary keeps
-    // the page's other fonts and avoids touching a dictionary others share.
-    let fonts = match resources.get(b"Font") {
-        Ok(Object::Dictionary(d)) => d.clone(),
-        _ => Dictionary::new(),
     };
-    let mut fonts = fonts;
-    fonts.set(NEW_FONT, entry);
+    let page_dict = doc.get_dictionary(page).map_err(|e| e.to_string())?;
+    let mut resources = dict_of(doc, page_dict.get(b"Resources").ok());
+    let mut fonts = dict_of(doc, resources.get(b"Font").ok());
+    fonts.set(NEW_FONT, Object::Reference(font_id));
     resources.set("Font", Object::Dictionary(fonts));
+    doc.get_dictionary_mut(page).map_err(|e| e.to_string())?.set("Resources", Object::Dictionary(resources));
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1278,6 +1262,37 @@ mod tests {
         assert!(get_dict(&doc, res.unwrap(), b"Font").unwrap().get(NEW_FONT.as_bytes()).is_ok());
         // Original font untouched.
         assert!(get_dict(&doc, res.unwrap(), b"Font").unwrap().get(b"F1").is_ok());
+    }
+
+    #[test]
+    fn keeps_the_other_fonts_when_resources_are_references() {
+        let mut doc = Document::with_version("1.7");
+        let f = helvetica(&mut doc);
+        let (mut doc, page) = page_with("BT /F1 12 Tf 72 700 Td (Hello) Tj ET", vec![f], Some(doc));
+        // As LibreOffice writes them: /Resources and /Font are references.
+        let fonts = doc
+            .get_dictionary(page)
+            .unwrap()
+            .get(b"Resources")
+            .and_then(|r| r.as_dict())
+            .unwrap()
+            .get(b"Font")
+            .unwrap()
+            .clone();
+        let fonts_id = doc.add_object(fonts);
+        let res_id = doc.add_object(dictionary! { "Font" => fonts_id });
+        doc.get_dictionary_mut(page).unwrap().set("Resources", res_id);
+        let l = lines(&doc, page).unwrap();
+        assert_eq!(l.len(), 1);
+        let mut font = Embedder::new(None);
+        let change = Change { ops: l[0].ops.clone(), text: "Bye".into(), size: 12.0, color: [0.0; 3] };
+        apply(&mut doc, page, &[change], &mut font).unwrap();
+        let res = get_dict(&doc, doc.get_dictionary(page).unwrap(), b"Resources").unwrap();
+        let fonts = get_dict(&doc, res, b"Font").unwrap();
+        assert!(fonts.get(b"F1").is_ok(), "the page's own font is still there");
+        assert!(fonts.get(NEW_FONT.as_bytes()).is_ok());
+        // Still reads back after the change (the new line is Helvetica-less text in the new font).
+        assert!(lines(&doc, page).is_ok());
     }
 
     #[test]
