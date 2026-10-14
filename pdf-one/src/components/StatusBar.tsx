@@ -1,4 +1,4 @@
-import { Minus, Plus, RotateCw } from "lucide-react";
+import { Minus, PanelLeft, PanelRight, Plus, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { runCommand } from "../lib/commands";
 import { percent } from "../lib/format";
@@ -78,6 +78,8 @@ function SaveState({ d }: { d: Doc }) {
 export function StatusBar({ d }: { d: Doc }) {
   const text = useStore(hint);
   const organizer = useStore((s) => s.organizer);
+  const panel = useStore((s) => s.panel !== null && !s.organizer);
+  const details = useStore((s) => s.details);
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 border-t border-line bg-panel px-3 text-xs">
       <div className="min-w-0 flex-1 truncate" title={text} role="status" aria-live="polite">
@@ -106,6 +108,24 @@ export function StatusBar({ d }: { d: Doc }) {
           </button>
         </>
       )}
+      <div className="h-4 w-px bg-line" />
+      {/* The side panels come back from here: a closed 詳細 must not be lost (UX §2). */}
+      <PanelButton on={panel} id="view.panel" label="一覧" title="左の一覧を出す・隠す（F4）" icon={<PanelLeft size={14} />} />
+      <PanelButton on={details && !organizer} id="view.details" label="詳細" title="右の詳細を出す・隠す" icon={<PanelRight size={14} />} />
     </div>
+  );
+}
+
+function PanelButton({ on, id, label, title, icon }: { on: boolean; id: string; label: string; title: string; icon: React.ReactNode }) {
+  return (
+    <button
+      onClick={() => runCommand(id)}
+      aria-pressed={on}
+      title={title}
+      className={`flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 ${on ? "bg-raised text-fg" : "text-dim hover:bg-hover hover:text-fg"}`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

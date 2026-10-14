@@ -9,14 +9,19 @@ import { KIND_LABEL } from "../lib/hints";
 import { isMac } from "../lib/keys";
 import { goToDestination } from "../lib/links";
 import { getSource } from "../lib/pdfjs";
-import { useStore, type Doc } from "../store";
+import { SIDEBAR, useStore, type Doc } from "../store";
 import { CommandButton } from "./CommandButton";
 import { useContextMenu } from "./ContextMenu";
+import { Resizer } from "./Resizer";
 import { Thumb, thumbSize } from "./Thumb";
 import { pickPage, usePageDrag } from "./usePageDrag";
 
 const st = () => useStore.getState();
-const WIDTH = 132;
+/**
+ * The thumbnail width for a list this wide (132 at the default 208). Steps of
+ * 12 keep the pictures from being redrawn at every pixel of a drag.
+ */
+const thumbWidth = (panel: number) => Math.max(84, Math.round((panel - 76) / 12) * 12);
 
 const PAGE_MENU = ["page.rotateLeft", "page.rotateRight", "-", "page.insertBlank", "page.insertFile", "-", "page.extract", "-", "page.delete"];
 
@@ -24,13 +29,15 @@ const PAGE_MENU = ["page.rotateLeft", "page.rotateRight", "-", "page.insertBlank
 export function Sidebar({ d }: { d: Doc }) {
   const panel = useStore((s) => s.panel);
   const setPanel = useStore((s) => s.setPanel);
+  const width = useStore((s) => s.sidebarWidth);
   const tabs = [
     { id: "pages" as const, label: "ページ" },
     { id: "comments" as const, label: "書き込み" },
     { id: "outline" as const, label: "しおり" },
   ];
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-panel" aria-label="一覧">
+    <aside style={{ width }} className="relative flex shrink-0 flex-col border-r border-line bg-panel" aria-label="一覧">
+      <Resizer edge="right" label="一覧の幅" width={width} range={SIDEBAR} onChange={(px) => st().setSidebarWidth(px)} />
       <div className="flex shrink-0 gap-0.5 border-b border-line p-1" role="tablist">
         {tabs.map(({ id, label }) => (
           <button
@@ -55,9 +62,10 @@ export function Sidebar({ d }: { d: Doc }) {
 }
 
 function PageList({ d }: { d: Doc }) {
+  const WIDTH = thumbWidth(useStore((s) => s.sidebarWidth));
   const scroller = useRef<HTMLDivElement>(null);
   const { drag, onPointerDown, wasDrag } = usePageDrag(scroller, "y");
-  const heights = useMemo(() => d.pages.map((p) => thumbSize(p, WIDTH)[1] + 30), [d.pages]);
+  const heights = useMemo(() => d.pages.map((p) => thumbSize(p, WIDTH)[1] + 30), [d.pages, WIDTH]);
   const v = useVirtualizer({
     count: d.pages.length,
     getScrollElement: () => scroller.current,

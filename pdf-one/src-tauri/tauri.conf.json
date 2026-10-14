@@ -23,7 +23,7 @@
         "hiddenTitle": true,
         "trafficLightPosition": {
           "x": 16,
-          "y": 24
+          "y": 32
         },
         "dragDropEnabled": true
       }
