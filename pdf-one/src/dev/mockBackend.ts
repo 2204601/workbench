@@ -145,6 +145,27 @@ export function installMockBackend() {
         views.delete(Number(a.id));
         return Array.from(v);
       }
+      case "text_lines": {
+        // The lines samplePdf draws, as Rust would list them (the Japanese one is in a font that can't be fixed).
+        const page = Number(a.index) + 1;
+        const make = (ops: number, text: string, size: number, y: number, editable: boolean, why = "") => ({
+          ops: [ops],
+          text,
+          rect: [72, y - 0.22 * size, 72 + text.length * size * 0.5, y + 0.88 * size],
+          size,
+          color: "#000000",
+          font: editable ? "Helvetica" : "KozMinPr6N-Regular",
+          editable,
+          why,
+        });
+        return [
+          make(1, `Sample document - page ${page}`, 28, 740, true),
+          make(2, `御見積書（第${page}頁）株式会社サンプル`, 14, 712, false, "このフォントの文字は直せません（文字コードの表が特殊です）"),
+          ...Array.from({ length: 22 }, (_, k) =>
+            make(3 + k, `Line ${k + 1}: The quick brown fox jumps over the lazy dog. Estimate 2025-${page}.`, 12, 690 - k * 22, true),
+          ),
+        ];
+      }
       case "close_pdf":
         return null;
       case "save_pdf": {

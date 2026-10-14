@@ -72,7 +72,9 @@ export type Tool =
   | "date"
   | "eraser"
   // A seal from the dialog (日付印, 文字の印), placed with a click.
-  | "seal";
+  | "seal"
+  // 文字を直す: click a line of the page's own text and type (UX §5).
+  | "editText";
 
 /** The look new annotations of a tool get (and the selected one shows). */
 export interface ToolStyle {
@@ -282,6 +284,7 @@ export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   date: { color: "#111111", width: 0, opacity: 1, fill: null, fontSize: 11 },
   eraser: PEN,
   seal: { color: "#d62828", width: 1.5, opacity: 1, fill: null, fontSize: 9 },
+  editText: PEN,
 };
 
 function savedStyles(): Record<Tool, ToolStyle> {

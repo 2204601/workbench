@@ -56,6 +56,7 @@ async function dropImages(paths: string[], x: number, y: number) {
           rotation,
           image: img.id,
           seal: null,
+      runs: [],
           contents: "",
           author: st().author,
           modified: "",

@@ -409,6 +409,8 @@ impl Writer<'_> {
                 d.set("Name", "PDFOneImage");
                 ("Stamp", r, ap)
             }
+            // Written into the page's content, not as an annotation (compose.rs).
+            AnnotKind::Edit => return Err("文字の修正は注釈としては書けません".into()),
         };
         d.set("Subtype", subtype);
         d.set("Rect", rect_array(rect));

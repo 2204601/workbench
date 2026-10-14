@@ -188,7 +188,7 @@ function Comments({ d }: { d: Doc }) {
 
 function CommentRow({ a, page, selected, readOnly }: { a: Annot; page: number; selected: boolean; readOnly: boolean }) {
   const touched = useRef(false);
-  const preview = a.kind === "text" ? a.text : a.contents;
+  const preview = a.kind === "text" || a.kind === "edit" ? a.text : a.contents;
   return (
     <div
       onClick={() => {
@@ -202,7 +202,7 @@ function CommentRow({ a, page, selected, readOnly }: { a: Annot; page: number; s
         <span className="text-fg">{KIND_LABEL[a.kind]}</span>
         <span className="min-w-0 flex-1 truncate">{a.author}</span>
       </div>
-      {selected && a.kind !== "text" ? (
+      {selected && a.kind !== "text" && a.kind !== "edit" ? (
         <textarea
           value={a.contents}
           readOnly={readOnly}

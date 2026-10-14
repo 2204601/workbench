@@ -26,7 +26,9 @@ export type AnnotKind =
   | "text"
   | "note"
   | "image"
-  | "seal";
+  | "seal"
+  // A line of the page's own text that was fixed (docs/SPEC.md §文字を直す).
+  | "edit";
 
 /**
  * An annotation (src-tauri/src/pdf/mod.rs `Annot`). Coordinates are in the
@@ -59,11 +61,32 @@ export interface Annot {
   image: number | null;
   /** A seal the app draws: "round" (a date seal, three lines) or "box" (a word). Its words are `text`, one per line. */
   seal: "round" | "box" | null;
+  /**
+   * An `edit`'s old line: the page-content operators that drew it (a
+   * `TextLine`'s `ops`). Then `text` is what it says now, `lines[0]` what it
+   * said, `rect` the old line's box, `fill` the page's colour behind it
+   * (to hide the old text on screen), `fontSize` and `color` as drawn now.
+   */
+  runs: number[];
   /** The comment. */
   contents: string;
   author: string;
   /** PDF date (D:YYYYMMDDHHmmSS…). */
   modified: string;
+}
+
+/** A line of the page's own text (src-tauri/src/pdf/textedit.rs `Line`). */
+export interface TextLine {
+  ops: number[];
+  text: string;
+  /** [x1, y1, x2, y2] around the line, in the page's PDF space. */
+  rect: [number, number, number, number];
+  size: number;
+  color: string;
+  font: string;
+  editable: boolean;
+  /** Why it can't be fixed (Japanese, for the user). */
+  why: string;
 }
 
 export interface PageAnnot {
@@ -156,6 +179,7 @@ export const api = {
   closePdf: (id: number) => invoke<void>("close_pdf", { id }),
   savePdf: (request: { path: string; pages: PageSpec[]; forms: FormEntry[] }) => invoke<Saved>("save_pdf", { request }),
   /** The file as it would be saved, as bytes (printing). */
+  textLines: (id: number, index: number) => invoke<TextLine[]>("text_lines", { id, index }),
   composePdf: async (request: { pages: PageSpec[]; forms: FormEntry[] }) => bytes(await invoke<ArrayBuffer>("compose_pdf", { request })),
 
   addImage: (path: string) => invoke<ImageInfo>("add_image", { path }),

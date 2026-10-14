@@ -66,6 +66,7 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
         close_pdf,
         save_pdf,
         compose_pdf,
+        text_lines,
         add_image,
         add_image_bytes,
         image_bytes,

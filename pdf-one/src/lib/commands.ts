@@ -114,7 +114,8 @@ const nudge = (s: S, dx: number, dy: number) => {
   if (!d || !id) return;
   const uid = Object.entries(d.annots).find(([, l]) => l.some((a) => a.id === id))?.[0];
   const page = d.pages.find((p) => p.uid === uid);
-  if (!page) return;
+  // A fixed line stays where the page's own line was.
+  if (!page || findAnnot(d, id)?.annot.kind === "edit") return;
   // Screen directions to PDF space, for the page's rotation.
   const { view, rotation } = pageBox(page, d.viewRotate);
   const inv = invert(viewportTransform(view, 1, rotation));
@@ -127,7 +128,7 @@ const nudge = (s: S, dx: number, dy: number) => {
 const duplicate = (s: S) => {
   const d = activeDoc(s);
   const found = d && findAnnot(d, d.selectedAnnot);
-  if (!d || !found) return;
+  if (!d || !found || found.annot.kind === "edit") return;
   const a = { ...found.annot, ...moved(found.annot, 10, -10), id: newAnnotId(), modified: "", author: s.author };
   s.commit((x) => addAnnot(x, found.uid, a));
   s.patchDoc({ selectedAnnot: a.id });
@@ -154,6 +155,13 @@ export const TOOLS: { tool: Tool; title: string; icon: LucideIcon; key?: string;
   { tool: "dot", title: "黒丸", icon: CircleDot, words: ["●", "丸", "選択肢", "塗りつぶし"] },
   { tool: "dash", title: "横線", icon: Minus, words: ["─", "線を引く", "下線", "空欄"] },
   { tool: "date", title: "日付", icon: CalendarDays, words: ["今日", "年月日", "日にち"] },
+  // 文字と画像
+  {
+    tool: "editText",
+    title: "文字を直す",
+    icon: TextCursorInput,
+    words: ["修正", "書き換え", "訂正", "変更", "編集", "テキスト編集", "誤字", "直す"],
+  },
 ];
 
 export const COMMANDS: Command[] = [

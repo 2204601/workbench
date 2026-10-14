@@ -33,6 +33,7 @@ const CONTROLS: Record<AnnotKind, { width?: [number, number]; fill?: boolean; si
   note: {},
   image: {},
   seal: { width: [0.5, 4], size: true },
+  edit: { size: true },
 };
 
 const TOOL_KIND: Partial<Record<Tool, AnnotKind>> = {
@@ -165,7 +166,7 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
   return (
     <>
       {kind !== "image" && (
-        <Field label={kind === "text" ? "文字の色" : "色"}>
+        <Field label={kind === "text" || kind === "edit" ? "文字の色" : "色"}>
           <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="色">
             {colors.map((col) => (
               <button
@@ -241,6 +242,7 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
           </select>
         </Field>
       )}
+      {kind !== "edit" && (
       <Field label="濃さ">
         <div className="flex items-center gap-2">
           <span className="text-xs text-dim">薄い</span>
@@ -260,6 +262,7 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
           <span className="w-10 shrink-0 text-right text-sm tabular-nums">{Math.round(cur.opacity * 100)}%</span>
         </div>
       </Field>
+      )}
       {!sel && ONE_SHOT.includes(tool) && (
         <label className="flex cursor-pointer items-start gap-2">
           <input type="checkbox" checked={sticky} onChange={(e) => st().setSticky(e.target.checked)} className="mt-0.5 accent-accent" />
@@ -270,7 +273,8 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
         </label>
       )}
       {sel && sel.annot.kind === "seal" && <SealWords a={sel.annot} />}
-      {sel && sel.annot.kind !== "text" && (
+      {sel && sel.annot.kind === "edit" && <EditInfo a={sel.annot} />}
+      {sel && sel.annot.kind !== "text" && sel.annot.kind !== "edit" && (
         <Field label="コメント">
           <textarea
             value={sel.annot.contents}
@@ -296,12 +300,37 @@ function AnnotControls({ sel, tool }: { sel: { uid: string; annot: Annot } | nul
       )}
       {sel && (
         <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3">
-          <ActionButton id="annot.duplicate" icon={<Copy size={15} />} />
-          <ActionButton id="annot.front" icon={<ArrowUpToLine size={15} />} />
-          <ActionButton id="annot.delete" icon={<Trash2 size={15} />} danger />
+          {sel.annot.kind !== "edit" && <ActionButton id="annot.duplicate" icon={<Copy size={15} />} />}
+          {sel.annot.kind !== "edit" && <ActionButton id="annot.front" icon={<ArrowUpToLine size={15} />} />}
+          {sel.annot.kind === "edit" ? (
+            <button
+              onClick={() => runCommand("annot.delete")}
+              className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-danger hover:bg-hover"
+            >
+              <Trash2 size={15} />
+              もとの文字に戻す
+            </button>
+          ) : (
+            <ActionButton id="annot.delete" icon={<Trash2 size={15} />} danger />
+          )}
         </div>
       )}
     </>
+  );
+}
+
+/** What a fixed line was, and what the file will do with it. */
+function EditInfo({ a }: { a: Annot }) {
+  return (
+    <div className="flex flex-col gap-2 rounded-md bg-raised p-2.5 text-xs leading-relaxed text-dim">
+      <div>
+        <div>もとの文字</div>
+        <div className="mt-0.5 text-sm break-words text-fg">{a.lines[0] || "（なし）"}</div>
+      </div>
+      <p>
+        保存すると、ページの中のもとの文字が消え、同じ場所に新しい文字が書かれます。新しい文字は、もとのフォントではなく、このアプリの日本語のフォントです。
+      </p>
+    </div>
   );
 }
 

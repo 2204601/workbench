@@ -37,6 +37,10 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
 8. 届かないオブジェクトを消し（lopdf の `prune_objects` は大きなファイルで遅いので自前）、オブジェクトストリームで書く
 9. 同じフォルダの一時ファイルに書いてから入れ替える。上書きなら先にバックアップ（`files.rs`）
 
+### ページの中身を書き換える例外（`pdf/textedit.rs`）
+
+文字の修正（`AnnotKind::Edit`）だけは、注釈ではなくページの内容ストリームを書き換える（[ADR-0003](../decisions/adr-0003-rewrite-page-content-for-text-fixes.md)）。`lines(doc, page)` が内容を読んで文字の行（位置・大きさ・色・フォント、`ops` = 描いた命令の番号）を返し、`apply` が `compose` の中で、直された行の命令を「位置だけ進める」命令に置き換えて新しい文字を足す。フロントの `lib/textedit.ts` は箱の高さの定数（`BOX_ASCENT` / `BOX_DESCENT`）を Rust と同じにする。
+
 ## 4. 座標
 
 - 注釈の座標は **ページ自身の PDF 座標**（ポイント、左下が原点、/Rotate の前）で持つ。ページを回転・移動しても注釈は変わらない
@@ -66,6 +70,7 @@ Platform の [Architecture Standard](../../../desktop-platform/standards/archite
 | `save_pdf` | ページ・注釈・フォームの値から書く。重いので別スレッド |
 | `add_image` / `add_image_bytes` / `image_bytes` | 画像はRust の画像置き場に持ち、id で指す。貼り付けはバイト列のまま送る |
 | `compose_pdf` | `save_pdf` と同じ組み立てをして、書かずにバイト列で返す（印刷。`lib/print.ts` が pdf.js で絵にする） |
+| `text_lines` | 開いた文書の 1 ページの文字の行を返す（直せるものと、直せない理由付きのもの。`pdf/textedit.rs`）。「文字を直す」の道具を持っている間だけ、ページごとに 1 回呼ぶ |
 | `list_stamps` / `add_stamp` / `add_stamp_bytes` / `remove_stamp` / `use_stamp` | ライブラリ（`stamps/`）。id はファイル名で、フォルダの外を指すものは断る。`add_stamp_bytes` はアプリで描いた署名（PNG のバイト列） |
 | `write_draft` / `list_drafts` / `remove_draft` | 下書き（`drafts/<場所のハッシュ>/`：state.json、meta.json、使った画像）。`lib/drafts.ts` が 30 秒ごとに書き、起動時に一覧して「戻す」 |
 | `take_open_requests` | OS から来た「開く」（起動時の引数、2 つ目の起動、macOS の Opened）。ページが読み込まれる前に来ても失わないよう、Rust が貯めておく |
