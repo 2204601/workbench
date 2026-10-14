@@ -1,6 +1,5 @@
 import { FileText, Plus, X } from "lucide-react";
 import { closeDoc } from "../lib/actions";
-import { runCommand } from "../lib/commands";
 import { dragRegion } from "../lib/titleBar";
 import { useStore } from "../store";
 
@@ -46,10 +45,28 @@ export function TabBar() {
             </button>
           </div>
         ))}
+        {/* The + shows the start screen (open, recent files) in a tab of its own, as when the app starts. */}
+        {active === null && docs.length > 0 && (
+          <div
+            role="tab"
+            aria-selected
+            className="group flex h-8 max-w-56 min-w-28 shrink-0 cursor-default items-center gap-1.5 rounded-t-lg bg-panel pr-1 pl-2.5 text-sm text-fg"
+          >
+            <FileText size={14} className="shrink-0 opacity-70" />
+            <span className="min-w-0 flex-1 truncate">はじめる</span>
+            <button
+              aria-label="はじめる画面を閉じる"
+              onClick={() => st().setActive(docs[docs.length - 1].key)}
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-hover"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
         <button
-          onClick={() => runCommand("file.open")}
-          title="開く"
-          aria-label="PDF を開く"
+          onClick={() => st().setActive(null)}
+          title="新しいタブ（開く PDF を選びます）"
+          aria-label="新しいタブ"
           className="mb-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-dim hover:bg-hover hover:text-fg"
         >
           <Plus size={15} />

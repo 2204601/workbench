@@ -84,6 +84,8 @@ export interface TextLine {
   size: number;
   color: string;
   font: string;
+  /** The characters the line's font can write; null: too many to list. New text in them keeps the font. */
+  chars: string | null;
   editable: boolean;
   /** Why it can't be fixed (Japanese, for the user). */
   why: string;
