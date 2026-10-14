@@ -12,7 +12,8 @@ use super::annots::Writer;
 use super::font::{Embedder, FontFile};
 use super::forms::{self, parse_ref, FieldValue};
 use super::image::ImageStore;
-use super::{get_dict, get_name, get_resolved, number, ref_id, text_string, Annot};
+use super::textedit;
+use super::{get_dict, get_name, get_resolved, number, ref_id, text_string, Annot, AnnotKind};
 use lopdf::{dictionary, Dictionary, Document, Object, ObjectId, SaveOptions};
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -165,13 +166,27 @@ pub fn build(input: &Input) -> Result<Document, String> {
                 }
             }
         }
-        if !spec.annots.is_empty() {
+        // Fixed lines of the page's own text go into its content.
+        let (edits, annots): (Vec<&Annot>, Vec<&Annot>) = spec.annots.iter().partition(|a| a.kind == AnnotKind::Edit);
+        if !edits.is_empty() {
+            let changes: Vec<textedit::Change> = edits
+                .iter()
+                .map(|a| textedit::Change {
+                    ops: a.runs.clone(),
+                    text: a.text.clone(),
+                    size: a.font_size,
+                    color: super::parse_color(&a.color),
+                })
+                .collect();
+            textedit::apply(&mut doc, id, &changes, &mut font)?;
+        }
+        if !annots.is_empty() {
             let mut refs = match doc.get_dictionary(id).ok().and_then(|p| get_resolved(&doc, p, b"Annots")) {
                 Some(Object::Array(a)) => a.clone(),
                 _ => Vec::new(),
             };
             let mut w = Writer { doc: &mut doc, font: &mut font, images: input.images };
-            for a in &spec.annots {
+            for a in annots {
                 refs.push(Object::Reference(w.write(id, a)?));
             }
             doc.get_dictionary_mut(id).map_err(|e| e.to_string())?.set("Annots", Object::Array(refs));

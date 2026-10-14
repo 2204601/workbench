@@ -19,6 +19,7 @@ pub mod font;
 pub mod forms;
 pub mod image;
 pub mod open;
+pub mod textedit;
 
 use lopdf::{Dictionary, Object, ObjectId};
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,10 @@ pub enum AnnotKind {
     /// box (承認済み, 社外秘). Vector, in the embedded font, so it stays
     /// sharp and its words can be changed.
     Seal,
+    /// A line of the page's own text that was fixed (textedit.rs). It is
+    /// not an annotation: saving rewrites the page's content (the old line
+    /// is removed, the new one drawn), and the file has no trace of it.
+    Edit,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -86,6 +91,10 @@ pub struct Annot {
     /// middle band) or "box" (one word in a frame). The words are in `text`,
     /// one per line.
     pub seal: Option<String>,
+    /// An `Edit`'s old line: the page content operators that drew it
+    /// (textedit.rs `Line::ops`). `text` is what it says now; `rect` is the
+    /// old line's box, `font_size` and `color` how the new one is drawn.
+    pub runs: Vec<u32>,
     /// The comment (pop-up note), /Contents.
     pub contents: String,
     pub author: String,
@@ -112,6 +121,7 @@ impl Default for Annot {
             rotation: 0,
             image: None,
             seal: None,
+            runs: Vec::new(),
             contents: String::new(),
             author: String::new(),
             modified: String::new(),

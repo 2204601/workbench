@@ -112,6 +112,7 @@ fn annot(kind: &str, extra: Value) -> Value {
         "rotation": 0,
         "image": null,
         "seal": null,
+        "runs": [],
         "contents": "",
         "author": "テスト",
         "modified": "",
@@ -196,6 +197,30 @@ fn open_edit_save_and_open_again() {
     let printed = ui.raw("compose_pdf", json!({ "request": { "pages": pages, "forms": [] } }));
     assert!(printed.starts_with(b"%PDF-"));
     assert_eq!(lopdf::Document::load_mem(&printed).unwrap().get_pages().len(), 4);
+
+    // The page's own text, to be fixed: listed, then rewritten on save.
+    let lines = ui.call("text_lines", json!({ "id": a_id, "index": 2 })).unwrap();
+    assert_eq!(lines[0]["text"], "Page 3");
+    assert_eq!(lines[0]["editable"], true);
+    assert_eq!(lines[0]["size"], 24.0);
+    assert!(ui.call("text_lines", json!({ "id": a_id, "index": 9 })).is_err());
+    let fixed = tmp.path().join("直した.pdf");
+    let edit = annot(
+        "edit",
+        json!({ "runs": lines[0]["ops"], "text": "Page three", "fontSize": 24, "color": "#000000", "rect": lines[0]["rect"] }),
+    );
+    ui.call(
+        "save_pdf",
+        json!({ "request": { "path": fixed, "pages": [{ "source": a_id, "index": 2, "annots": [edit] }], "forms": [] } }),
+    )
+    .unwrap();
+    let doc = lopdf::Document::load(&fixed).unwrap();
+    let body = String::from_utf8_lossy(&doc.get_page_content(doc.get_pages()[&1])).into_owned();
+    assert!(!body.contains("(Page 3)"), "{body}");
+    assert!(body.contains("PDFEdit"), "{body}");
+    // Opening the result again: the fixed line reads as ordinary text, and there is no annotation.
+    let again = ui.call("open_pdf", json!({ "path": fixed })).unwrap();
+    assert_eq!(again["annots"], json!([]));
 
     // Saving over a file keeps the old one in the backups.
     let again = ui

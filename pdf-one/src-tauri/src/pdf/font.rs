@@ -341,7 +341,7 @@ fn to_unicode(glyphs: &BTreeMap<u16, (String, f64)>) -> String {
 }
 
 /// Helvetica's widths, roughly: only used when there is no system font.
-fn helvetica_width(c: char) -> f64 {
+pub fn helvetica_width(c: char) -> f64 {
     match c {
         'i' | 'j' | 'l' | '\'' | '.' | ',' | ':' | ';' | '!' | '|' => 0.222,
         ' ' | 'f' | 't' | 'I' | '/' | '(' | ')' | '[' | ']' => 0.278,

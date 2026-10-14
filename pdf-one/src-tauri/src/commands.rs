@@ -5,6 +5,7 @@ use crate::files;
 use crate::pdf::compose::{self, FormEntry, PageSpec};
 use crate::pdf::image::{read_image, ImageStore};
 use crate::pdf::open::{open_bytes, PageAnnot};
+use crate::pdf::textedit::{self, Line as TextLine};
 use crate::settings::{self, AppSettings};
 use lopdf::Document;
 use serde::{Deserialize, Serialize};
@@ -201,6 +202,19 @@ pub async fn open_pdf<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<
 pub fn pdf_view_bytes(state: State<'_, AppState>, id: u32) -> CmdResult<Response> {
     let bytes = lock(&state.views).remove(&id).ok_or("PDF がもう閉じられています")?;
     Ok(Response::new(bytes))
+}
+
+/// The lines of text on page `index` of document `id` that can be fixed,
+/// and those that can't, with why (textedit.rs).
+#[tauri::command]
+pub async fn text_lines<R: Runtime>(app: AppHandle<R>, id: u32, index: usize) -> CmdResult<Vec<TextLine>> {
+    let doc = lock(&app.state::<AppState>().docs).get(&id).cloned().ok_or("PDF がもう閉じられています")?;
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Vec<TextLine>> {
+        let page = *doc.get_pages().values().nth(index).ok_or("ページが見つかりません")?;
+        textedit::lines(&doc, page)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]
