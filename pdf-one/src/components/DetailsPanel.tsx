@@ -8,8 +8,9 @@ import { readingSize } from "../lib/geometry";
 import { KIND_LABEL } from "../lib/hints";
 import { pageBox } from "../lib/layout";
 import { TEXT_PADDING, textHeight, wrapText } from "../lib/text";
-import { findAnnot, useStore, type Doc, type Tool, type ToolStyle } from "../store";
+import { DETAILS, findAnnot, useStore, type Doc, type Tool, type ToolStyle } from "../store";
 import { CommandButton } from "./CommandButton";
+import { Resizer } from "./Resizer";
 
 const st = () => useStore.getState();
 
@@ -65,6 +66,7 @@ const ONE_SHOT: Tool[] = ["text", "rect", "ellipse", "line", "arrow", "image", "
  */
 export function DetailsPanel({ d }: { d: Doc }) {
   const tool = useStore((s) => s.tool);
+  const width = useStore((s) => s.detailsWidth);
   const sel = tool === "select" ? findAnnot(d, d.selectedAnnot) : null;
   const toolKind = tool !== "select" && tool !== "hand" ? TOOL_KIND[tool] : undefined;
   let title: string;
@@ -93,7 +95,8 @@ export function DetailsPanel({ d }: { d: Doc }) {
     body = <DocInfo d={d} />;
   }
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-l border-line bg-panel" aria-label="詳細">
+    <aside style={{ width }} className="relative flex shrink-0 flex-col border-l border-line bg-panel" aria-label="詳細">
+      <Resizer edge="left" label="詳細の幅" width={width} range={DETAILS} onChange={(px) => st().setDetailsWidth(px)} />
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line pr-1 pl-3">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
         <button onClick={() => st().setDetails(false)} className="rounded p-1 text-dim hover:bg-hover hover:text-fg" aria-label="詳細を閉じる" title="詳細を閉じる">

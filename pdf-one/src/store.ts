@@ -186,6 +186,9 @@ interface State {
   panel: "pages" | "comments" | "outline" | null;
   /** The right panel (詳細: what is selected, docs/UX.md §7). */
   details: boolean;
+  /** Widths of the left list and the right panel in px; dragged by their edges. */
+  sidebarWidth: number;
+  detailsWidth: number;
   /** The page organizer (a grid of all pages) instead of the pages. */
   organizer: boolean;
   /** Keep a one-shot tool (text, shapes, pictures) after placing (UX §6「続けて置く」). */
@@ -216,6 +219,8 @@ interface State {
   setPendingSeal: (s: PendingSeal | null) => void;
   setPanel: (p: State["panel"]) => void;
   setDetails: (on: boolean) => void;
+  setSidebarWidth: (px: number) => void;
+  setDetailsWidth: (px: number) => void;
   setOrganizer: (on: boolean) => void;
   setSticky: (on: boolean) => void;
   setTextSize: (n: number) => void;
@@ -290,6 +295,14 @@ function savedStyles(): Record<Tool, ToolStyle> {
   }
 }
 
+/** The ranges the side panels can be dragged within (px). Both at their widest still leave the page room in a 960px window. */
+export const SIDEBAR = { min: 160, max: 360, init: 208 };
+export const DETAILS = { min: 200, max: 400, init: 240 };
+const savedWidth = (key: string, r: { min: number; max: number; init: number }) => {
+  const n = Number(load(key));
+  return n >= r.min && n <= r.max ? n : r.init;
+};
+
 const savedPanel = load("panel");
 const savedTextSize = Number(load("textSize"));
 
@@ -322,6 +335,8 @@ export const useStore = create<State>()((set, get) => {
     pendingSeal: null,
     panel: savedPanel === "none" ? null : ((savedPanel as State["panel"]) ?? "pages"),
     details: load("details") !== "off",
+    sidebarWidth: savedWidth("sidebarWidth", SIDEBAR),
+    detailsWidth: savedWidth("detailsWidth", DETAILS),
     organizer: false,
     sticky: load("sticky") === "on",
     textSize: [1.15, 1.3].includes(savedTextSize) ? savedTextSize : 1,
@@ -379,6 +394,16 @@ export const useStore = create<State>()((set, get) => {
     setDetails: (details) => {
       set({ details });
       persist("details", details ? "on" : "off");
+    },
+    setSidebarWidth: (px) => {
+      const sidebarWidth = Math.round(Math.min(SIDEBAR.max, Math.max(SIDEBAR.min, px)));
+      set({ sidebarWidth });
+      persist("sidebarWidth", String(sidebarWidth));
+    },
+    setDetailsWidth: (px) => {
+      const detailsWidth = Math.round(Math.min(DETAILS.max, Math.max(DETAILS.min, px)));
+      set({ detailsWidth });
+      persist("detailsWidth", String(detailsWidth));
     },
     setOrganizer: (organizer) => set({ organizer }),
     setSticky: (sticky) => {
