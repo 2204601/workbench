@@ -41,12 +41,21 @@ impl FontFile {
             return None;
         }
         let data = std::fs::read(path).ok()?;
+        Self::from_bytes(data, index, family, needs_japanese)
+    }
+
+    /// The same as `load`, for a font already in memory (the browser build,
+    /// which can't read the OS's fonts: wasm/).
+    pub fn from_bytes(data: Vec<u8>, index: u32, family: &str, needs_japanese: bool) -> Option<Self> {
+        if data.len() as u64 > MAX_FONT {
+            return None;
+        }
         let index = face_named(&data, family).unwrap_or(index);
         let font = FontRef::from_index(&data, index).ok()?;
         // fsType: 0x0002 = restricted licence (no embedding), 0x0200 = bitmaps only.
         if let Ok(os2) = font.os2() {
             if os2.fs_type() & 0x0202 != 0 {
-                log::info!("{}: 埋め込みが許可されていないフォントです", path.display());
+                log::info!("{family}: 埋め込みが許可されていないフォントです");
                 return None;
             }
         }

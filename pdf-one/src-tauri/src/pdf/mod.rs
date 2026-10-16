@@ -270,6 +270,10 @@ pub fn rect_array(r: [f64; 4]) -> Object {
 
 /// D:YYYYMMDDHHmmSSZ for now (UTC), for /M and /ModDate.
 pub fn pdf_date_now() -> String {
+    // The browser build (wasm/) has no clock of its own: SystemTime panics there.
+    #[cfg(target_arch = "wasm32")]
+    let secs = (js_sys::Date::now() / 1000.0) as i64;
+    #[cfg(not(target_arch = "wasm32"))]
     let secs =
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     let days = secs.div_euclid(86_400);
