@@ -10,13 +10,16 @@ PDF One の画面と保存の処理を、そのまま **普通のブラウザ** 
 src/（画面。そのまま）
   └ api.ts の invoke ──▶ src/dev/wasmBackend.ts（Tauri のコマンドに答える）
                             ├ PDF の読み書き ──▶ wasm/（src-tauri/src/pdf/ を #[path] で読み込んでビルド）
-                            ├ ファイルを開く ──▶ ブラウザのファイル選択
+                            ├ ファイルを開く ──▶ ブラウザのファイル選択、ドロップ（src/lib/browserFiles.ts）
                             ├ 保存 ──▶ ダウンロード
                             └ ほか（設定・下書き） ──▶ mockBackend.ts の mockCommand
 ```
 
 - `wasm/`：`src-tauri/src/pdf/mod.rs` を `#[path]` で取り込むだけのクレート。`AppState` の代わりに、開いた文書と画像をメモリに持ち、`open` / `takeView` / `textLines` / `compose` / `addImage` / `imageBytes` / `setFont` を出す
-- `src/dev/wasmBackend.ts`：`mockBackend.ts` と同じく `mockIPC` で Tauri のコマンドに答える。画面（`src/components/`、`src/lib/`）は変えていない。`main.tsx` で `?backend=wasm` のときにこちらを使う
+- `src/dev/wasmBackend.ts`：`mockBackend.ts` と同じく `mockIPC` で Tauri のコマンドに答える。`main.tsx` で `?backend=wasm` のときにこちらを使う
+- 画面の変更は `DropZone.tsx` だけ：Tauri の外では、ページ自身のドロップのイベントで同じことをする（PDF を開く、ページ一覧に落とせばページとして足す、画像はページに置く）。Tauri の `isTauri()` を偽って Tauri のドロップを真似ると、メニューバーやアップデートまで動き出すので、そうしない
+- `src/lib/browserFiles.ts`：ブラウザから受け取ったファイル（選択・ドロップ）に仮のパスを付けて持つ。アプリはファイルをパスで渡すので、`wasmBackend.ts` はこのパスで読み戻す
+- 日本語フォントは Noto Sans JP（SIL OFL 1.1）の Regular。npm の `@expo-google-fonts/noto-sans-jp`（Google Fonts の静的な版。版は固定）から Vite が配る
 - `src-tauri/src/pdf/` の変更は 2 か所だけ
   - `font.rs`：`FontFile::from_bytes`（メモリにあるフォントから。`load` はこれを呼ぶ）
   - `mod.rs`：`pdf_date_now` の時刻。wasm では `SystemTime::now()` が panic するので `js_sys::Date::now()`
@@ -28,7 +31,6 @@ src/（画面。そのまま）
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.129 --locked   # wasm/Cargo.toml の wasm-bindgen と同じ版
 npm run build:wasm                                          # wasm/pkg/ ができる（git には入れない）
-mkdir -p public/fonts && cp <日本語フォント> public/fonts/jp.ttf   # 下の §4
 npm run dev                                                 # http://localhost:1420/?backend=wasm
 ```
 
@@ -41,7 +43,8 @@ Chromium（Playwright）で、ブラウザ版の PDF One を操作した。
 | 操作 | 結果 |
 |---|---|
 | 「PDF を開く」→ ファイル選択 → 表示（10 ページの PDF） | ○ |
-| 文字を置く（日本語）→ 保存 → ダウンロード | ○ 画面と同じ位置・同じフォント。フォントは使った文字だけ埋め込み（`CID TrueType / Identity-H`、pdffonts で確認） |
+| ドロップ：PDF を開く／左のページ一覧に PDF を落としてページを足す（10 → 20 ページ）／画像をページに置く | ○ ドラッグ中は「ドロップして開く」が出る |
+| 文字を置く（日本語）→ 保存 → ダウンロード | ○ 画面と同じ位置・同じフォント（Noto Sans JP）。使った文字だけ埋め込み（`NotoSansJP-Regular`、`CID TrueType / Identity-H`、pdffonts で確認） |
 | 文字を直す（もとの行をクリックして打ち直す） | ○ 保存した PDF から元の文字が消え、新しい文字になっている（pdftotext で確認） |
 | ページを回転して保存 | ○ `/Rotate 90` |
 | 日付印・四角・テキストボックスを付けて保存 → 開き直す | ○ 同じ注釈が戻る（Node から wasm を直接呼んで確認） |
@@ -56,13 +59,13 @@ Chromium（Playwright）で、ブラウザ版の PDF One を操作した。
 | 読み込み（初期化） | 約 10 ms（Node）、フォントの登録を含めて約 120 ms（Chromium） |
 | 100 ページを組み立てて保存 | 28 ms（1.2 MB） |
 | 300 ページを組み立てて保存 | 44 ms（3.7 MB） |
-| 日本語フォント（IPA ゴシック） | 6.2 MB（gzip 4.3 MB）。これがいちばん重い |
+| 日本語フォント（Noto Sans JP Regular） | 5.5 MB（gzip 3.1 MB）。これがいちばん重い。最初に 1 回読めば、あとはブラウザのキャッシュ |
 
 ## 4. デスクトップ版と違うところ
 
-- **日本語フォント**：ブラウザからは OS のフォント（游ゴシック、ヒラギノ）を読めない。サーバーから 1 つ配る（`public/fonts/jp.ttf`。ライセンスと大きさのため git には入れない）。使えるのは TrueType か OpenType（CFF）で、可変フォントは使えない（subsetter が対応していない）。候補：IPAex ゴシック、Noto Sans JP（静的な版）。Chromium だけなら Local Font Access API（`queryLocalFonts`）で OS のフォントを読む手もある（許可の確認が出る）
+- **日本語フォント**：ブラウザからは OS のフォント（游ゴシック、ヒラギノ）を読めないので、Noto Sans JP を配る。画面のテキストボックスも同じフォントで描く（`FontFace` で登録）ので、画面とファイルの改行は同じ。デスクトップ版とは字の形が違う。可変フォントは使えない（subsetter が対応していない）ので、静的な版を使う
 - **保存**：上書きとバックアップは無い。毎回ダウンロード。分割は 1 ファイルずつダウンロードになる
-- **ドロップで開く**：Tauri のドロップの仕組みを使っているので、ブラウザでは効かない（試しでは作っていない）
+- **ドロップ**：同じように使える。ただしドラッグ中はファイル名が分からない（種類は分かる）ので、「ドロップして開く」を出すかは種類（`application/pdf`）で決める
 - **印鑑のライブラリ・下書き・設定**：試しではページを閉じると消える。Web 版にするなら IndexedDB か、サーバー（人ごとに持てる）
 - **アップデート、「このアプリで開く」、メニューバー、二重起動の防止**：Web には要らない
 - **pdf.js の版**：PDF One は 6.x、DX ポータルの PDF ツールは 3.11.174 を `static/js/vendor/` に置いている

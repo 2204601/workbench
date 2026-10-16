@@ -7,7 +7,10 @@
 // browser's file chooser and saved as downloads. Everything else (settings,
 // drafts…) is the mock's.
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+// Noto Sans JP (SIL OFL 1.1), the static Regular: the subsetter can't do variable fonts.
+import FONT from "@expo-google-fonts/noto-sans-jp/400Regular/NotoSansJP_400Regular.ttf?url";
 import type { ImageInfo, OpenedPdf, PageSpec, Stamp } from "../lib/api";
+import { browserFile, registerFile } from "../lib/browserFiles";
 import { mockCommand } from "./mockBackend";
 
 /** wasm/src/lib.rs, as wasm-bindgen exports it. */
@@ -26,20 +29,14 @@ interface Engine {
 /** Served by Vite from wasm/pkg/ (not in git: `npm run build:wasm`). */
 const ENGINE = "/wasm/pkg/pdf_one_wasm.js";
 /**
- * A Japanese font for the text written into PDFs: the browser can't read the
- * OS's fonts as the app does. Not in git (licence, size): put a TrueType or
- * OpenType (CFF) file there, e.g. IPAexGothic or Noto Sans JP (not variable).
+ * The CSS family the font for written text (FONT: the browser can't read the
+ * OS's fonts as the app does) is registered under, so the screen matches the file.
  */
-const FONT = "/fonts/jp.ttf";
-/** The CSS family the same font is registered under, so the screen matches the file. */
-const FAMILY = "PDF One Text";
+const FAMILY = "Noto Sans JP (PDF One)";
 
 let engine: Engine;
 let fontFamily: string | null = null;
 
-/** Picked files, by the made-up path the app is given for them. */
-const files = new Map<string, File>();
-let picked = 0;
 const stamps = new Map<string, Stamp & { img: ImageInfo }>();
 
 function pick(accept: string, multiple: boolean): Promise<string[] | null> {
@@ -49,11 +46,7 @@ function pick(accept: string, multiple: boolean): Promise<string[] | null> {
     input.accept = accept;
     input.multiple = multiple;
     input.addEventListener("change", () => {
-      const paths = Array.from(input.files ?? [], (f) => {
-        const path = `/ブラウザ/${++picked}/${f.name}`;
-        files.set(path, f);
-        return path;
-      });
+      const paths = Array.from(input.files ?? [], registerFile);
       resolve(paths.length ? paths : null);
     });
     input.addEventListener("cancel", () => resolve(null));
@@ -62,8 +55,8 @@ function pick(accept: string, multiple: boolean): Promise<string[] | null> {
 }
 
 async function read(path: string): Promise<Uint8Array> {
-  const f = files.get(path);
-  if (!f) throw "ブラウザ版では、ここで選んだファイルしか開けません";
+  const f = browserFile(path);
+  if (!f) throw "ブラウザ版では、選んだファイルかドロップしたファイルしか開けません";
   return new Uint8Array(await f.arrayBuffer());
 }
 
@@ -156,13 +149,13 @@ async function command(cmd: string, args?: unknown): Promise<unknown> {
 
 async function loadFont() {
   const res = await fetch(FONT);
-  if (!res.ok || !(res.headers.get("content-type") ?? "").match(/font|octet/)) {
-    console.warn(`${FONT} がありません。書き込む文字は Helvetica になり、日本語は出ません`);
+  if (!res.ok) {
+    console.warn(`${FONT} を読めません。書き込む文字は Helvetica になり、日本語は出ません`);
     return;
   }
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (!engine.setFont(bytes.slice(), FAMILY)) {
-    console.warn(`${FONT} は使えないフォントです（日本語が無い、埋め込みが禁止、可変フォントなど）`);
+    console.warn(`${FONT} は使えないフォントです`);
     return;
   }
   const face = new FontFace(FAMILY, bytes);

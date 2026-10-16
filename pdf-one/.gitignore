@@ -19,6 +19,3 @@ dist-ssr
 # Rust / Tauri build output (Platform Governance §2)
 src-tauri/target
 src-tauri/gen/schemas
-
-# A Japanese font for the browser trial (src/dev/wasmBackend.ts, docs/WASM.md). Not in git.
-public/fonts
