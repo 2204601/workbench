@@ -4,6 +4,7 @@ import { FileDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { insertPaths, openPaths } from "../lib/actions";
 import { api } from "../lib/api";
+import { registerFile } from "../lib/browserFiles";
 import { addAnnot } from "../lib/edit";
 import { CSS_PER_PT, rectToPdf, viewportTransform } from "../lib/geometry";
 import { pageBox } from "../lib/layout";
@@ -71,15 +72,36 @@ async function dropImages(paths: string[], x: number, y: number) {
   }
 }
 
+/** Where the drop went (x, y in CSS pixels): see useFileDrop. */
+function dropped(paths: string[], x: number, y: number) {
+  const pdfs = paths.filter(isPdf);
+  const images = paths.filter(isImage);
+  if (images.length) void dropImages(images, x, y);
+  if (!pdfs.length) {
+    if (!images.length) st().toast("PDF か画像（PNG・JPEG）をドロップしてください", true);
+    return;
+  }
+  const target = document.elementFromPoint(x, y);
+  const thumb = target?.closest<HTMLElement>("[data-thumb-index]");
+  const list = target?.closest("aside, [data-organizer]");
+  const d = activeDoc(st());
+  if (d && !d.readOnly && (thumb || list)) {
+    void insertPaths(pdfs, thumb ? Number(thumb.dataset.thumbIndex) + 1 : d.pages.length);
+  } else {
+    void openPaths(pdfs);
+  }
+}
+
 /**
  * Files dropped from Finder / Explorer (Tauri's drop events, Platform UI §6):
  * PDFs open in tabs, or go in as pages where pages are listed (the sidebar,
  * the page organizer); pictures go on the page they are dropped on.
+ * In a browser (docs/WASM.md), the same from the page's own drop events.
  */
 export function useFileDrop(): boolean {
   const [over, setOver] = useState(false);
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauri()) return browserDrop(setOver);
     let stop: (() => void) | undefined;
     let gone = false;
     getCurrentWebview()
@@ -90,24 +112,7 @@ export function useFileDrop(): boolean {
         else if (p.type === "drop") {
           setOver(false);
           const ratio = window.devicePixelRatio || 1;
-          const x = p.position.x / ratio;
-          const y = p.position.y / ratio;
-          const pdfs = p.paths.filter(isPdf);
-          const images = p.paths.filter(isImage);
-          if (images.length) void dropImages(images, x, y);
-          if (!pdfs.length) {
-            if (!images.length) st().toast("PDF か画像（PNG・JPEG）をドロップしてください", true);
-            return;
-          }
-          const target = document.elementFromPoint(x, y);
-          const thumb = target?.closest<HTMLElement>("[data-thumb-index]");
-          const list = target?.closest("aside, [data-organizer]");
-          const d = activeDoc(st());
-          if (d && !d.readOnly && (thumb || list)) {
-            void insertPaths(pdfs, thumb ? Number(thumb.dataset.thumbIndex) + 1 : d.pages.length);
-          } else {
-            void openPaths(pdfs);
-          }
+          dropped(p.paths, p.position.x / ratio, p.position.y / ratio);
         }
       })
       .then((un) => (gone ? un() : (stop = un)))
@@ -118,6 +123,39 @@ export function useFileDrop(): boolean {
     };
   }, []);
   return over;
+}
+
+/** The browser's drop events, for files only (not the app's own drags). */
+function browserDrop(setOver: (over: boolean) => void): () => void {
+  const files = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+  // Names aren't known until the drop; the type is.
+  const pdf = (e: DragEvent) => Array.from(e.dataTransfer?.items ?? []).some((i) => i.type === "application/pdf");
+  // enter and leave come for every element crossed on the way.
+  let depth = 0;
+  const enter = (e: DragEvent) => {
+    if (!files(e)) return;
+    if (depth++ === 0) setOver(pdf(e));
+  };
+  const leave = (e: DragEvent) => {
+    if (files(e) && --depth === 0) setOver(false);
+  };
+  const over = (e: DragEvent) => {
+    if (!files(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  };
+  const drop = (e: DragEvent) => {
+    if (!files(e)) return;
+    e.preventDefault();
+    depth = 0;
+    setOver(false);
+    dropped(Array.from(e.dataTransfer?.files ?? [], registerFile), e.clientX, e.clientY);
+  };
+  const events = { dragenter: enter, dragleave: leave, dragover: over, drop } as const;
+  for (const [name, f] of Object.entries(events)) window.addEventListener(name, f as EventListener);
+  return () => {
+    for (const [name, f] of Object.entries(events)) window.removeEventListener(name, f as EventListener);
+  };
 }
 
 export function DropOverlay() {

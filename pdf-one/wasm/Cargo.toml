@@ -1,0 +1,35 @@
+# The PDF reading and writing of the app (src-tauri/src/pdf/), built for the
+# browser as WebAssembly. A trial (docs/WASM.md): the same code, not a copy.
+[package]
+name = "pdf-one-wasm"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+# Not part of any other workspace.
+[workspace]
+
+[dependencies]
+# The same as src-tauri/Cargo.toml (Cargo.lock started as a copy of its lock).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+lopdf = { version = "0.45", default-features = false }
+subsetter = "0.2"
+skrifa = "0.48"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+wasm-bindgen = "=0.2.129"
+js-sys = "0.3"
+# lopdf draws random IDs; in the browser they come from crypto.getRandomValues.
+getrandom = { version = "0.4", features = ["wasm_js"] }
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+strip = true

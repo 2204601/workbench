@@ -107,136 +107,139 @@ async function imageInfo(bytes: Uint8Array): Promise<ImageInfo> {
 
 export function installMockBackend() {
   mockWindows("main");
-  mockIPC(async (cmd, args) => {
-    const a = (args ?? {}) as Record<string, unknown>;
-    switch (cmd) {
-      case "get_app_settings":
-        return settings;
-      case "set_app_settings":
-        settings = a.settings as AppSettings;
-        return settings;
-      case "os_user_name":
-        return "sample";
-      case "text_font_family":
-        return null;
-      case "system_proxy":
-        return null;
-      case "take_open_requests":
-        return [];
-      case "open_pdf": {
-        const path = String(a.path);
-        const id = nextId++;
-        views.set(id, samplePdf(path.includes("見積") ? 3 : 12));
-        settings.recent = [path, ...settings.recent.filter((p) => p !== path)].slice(0, 12);
-        const opened: OpenedPdf = {
-          id,
-          path,
-          name: path.split("/").pop() ?? path,
-          size: views.get(id)!.length,
-          readOnly: null,
-          signed: false,
-          annots: [],
-        };
-        return opened;
-      }
-      case "pdf_view_bytes": {
-        const v = views.get(Number(a.id));
-        if (!v) throw "PDF がもう閉じられています";
-        views.delete(Number(a.id));
-        return Array.from(v);
-      }
-      case "text_lines": {
-        // The lines samplePdf draws, as Rust would list them (the Japanese one is in a font that can't be fixed).
-        const page = Number(a.index) + 1;
-        const make = (ops: number, text: string, size: number, y: number, editable: boolean, why = "") => ({
-          ops: [ops],
-          text,
-          rect: [72, y - 0.22 * size, 72 + text.length * size * 0.5, y + 0.88 * size],
-          size,
-          color: "#000000",
-          font: editable ? "Helvetica" : "KozMinPr6N-Regular",
-          chars: editable ? " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz" : null,
-          editable,
-          why,
-        });
-        return [
-          make(1, `Sample document - page ${page}`, 28, 740, true),
-          make(2, `御見積書（第${page}頁）株式会社サンプル`, 14, 712, false, "このフォントの文字は直せません（文字コードの表が特殊です）"),
-          ...Array.from({ length: 22 }, (_, k) =>
-            make(3 + k, `Line ${k + 1}: The quick brown fox jumps over the lazy dog. Estimate 2025-${page}.`, 12, 690 - k * 22, true),
-          ),
-        ];
-      }
-      case "close_pdf":
-        return null;
-      case "save_pdf": {
-        const r = a.request as { path: string; pages: PageSpec[] };
-        console.info("save_pdf (mock)", r);
-        return { path: r.path, size: 12345, backup: null };
-      }
-      case "compose_pdf": {
-        // The sample again, as many pages as asked for (no annotations drawn).
-        const r = a.request as { pages: PageSpec[] };
-        return Array.from(samplePdf(Math.max(1, r.pages.length)));
-      }
-      case "add_image":
-        throw "ブラウザ版ではファイルを読めません。画像は貼り付けてください";
-      case "add_image_bytes":
-        return imageInfo(args as unknown as Uint8Array);
-      case "image_bytes": {
-        const img = images.get(Number(a.id));
-        if (!img) throw "画像が見つかりません";
-        return Array.from(img.bytes);
-      }
-      case "list_stamps":
-        return [...stamps.values()].map(({ id, name }) => ({ id, name }));
-      case "add_stamp":
-        throw "ブラウザ版ではファイルを読めません";
-      case "add_stamp_bytes": {
-        const img = await imageInfo(args as unknown as Uint8Array);
-        const id = `${String(stamps.size + 1).padStart(4, "0")}_署名.png`;
-        stamps.set(id, { id, name: "署名", img });
-        return { id, name: "署名" };
-      }
-      case "remove_stamp":
-        stamps.delete(String(a.id));
-        return null;
-      case "use_stamp": {
-        const s = stamps.get(String(a.id));
-        if (!s) throw "スタンプが見つかりません";
-        return s.img;
-      }
-      case "write_draft": {
-        const r = a.request as { path: string; json: string };
-        const d = loadDrafts();
-        const id = Array.from(r.path).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16);
-        d[id] = { path: r.path, savedAt: Date.now(), json: r.json };
-        saveDrafts(d);
-        return id;
-      }
-      case "list_drafts":
-        return Object.entries(loadDrafts()).map(([id, d]) => ({ id, ...d, images: [] }));
-      case "remove_draft": {
-        const d = loadDrafts();
-        delete d[String(a.id)];
-        saveDrafts(d);
-        return null;
-      }
-      case "reveal_log":
-      case "reveal_backups":
-      case "reveal_file":
-        return null;
-      case "plugin:dialog|open":
-        return (a.options as { directory?: boolean })?.directory ? "/Users/sample/Documents" : ["/Users/sample/Documents/サンプル資料.pdf"];
-      case "plugin:dialog|save":
-        return (a.options as { defaultPath?: string })?.defaultPath ?? "/Users/sample/Documents/out.pdf";
-      case "plugin:dialog|message":
-        return "Ok";
-      case "plugin:dialog|ask":
-      case "plugin:dialog|confirm":
-        return true;
-      default:
-        return null;
+  mockIPC(mockCommand);
+}
+
+/** The answer to one command. src/dev/wasmBackend.ts falls back on it for what isn't the PDF. */
+export async function mockCommand(cmd: string, args?: unknown): Promise<unknown> {
+  const a = (args ?? {}) as Record<string, unknown>;
+  switch (cmd) {
+    case "get_app_settings":
+      return settings;
+    case "set_app_settings":
+      settings = a.settings as AppSettings;
+      return settings;
+    case "os_user_name":
+      return "sample";
+    case "text_font_family":
+      return null;
+    case "system_proxy":
+      return null;
+    case "take_open_requests":
+      return [];
+    case "open_pdf": {
+      const path = String(a.path);
+      const id = nextId++;
+      views.set(id, samplePdf(path.includes("見積") ? 3 : 12));
+      settings.recent = [path, ...settings.recent.filter((p) => p !== path)].slice(0, 12);
+      const opened: OpenedPdf = {
+        id,
+        path,
+        name: path.split("/").pop() ?? path,
+        size: views.get(id)!.length,
+        readOnly: null,
+        signed: false,
+        annots: [],
+      };
+      return opened;
     }
-  });
+    case "pdf_view_bytes": {
+      const v = views.get(Number(a.id));
+      if (!v) throw "PDF がもう閉じられています";
+      views.delete(Number(a.id));
+      return Array.from(v);
+    }
+    case "text_lines": {
+      // The lines samplePdf draws, as Rust would list them (the Japanese one is in a font that can't be fixed).
+      const page = Number(a.index) + 1;
+      const make = (ops: number, text: string, size: number, y: number, editable: boolean, why = "") => ({
+        ops: [ops],
+        text,
+        rect: [72, y - 0.22 * size, 72 + text.length * size * 0.5, y + 0.88 * size],
+        size,
+        color: "#000000",
+        font: editable ? "Helvetica" : "KozMinPr6N-Regular",
+        chars: editable ? " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz" : null,
+        editable,
+        why,
+      });
+      return [
+        make(1, `Sample document - page ${page}`, 28, 740, true),
+        make(2, `御見積書（第${page}頁）株式会社サンプル`, 14, 712, false, "このフォントの文字は直せません（文字コードの表が特殊です）"),
+        ...Array.from({ length: 22 }, (_, k) =>
+          make(3 + k, `Line ${k + 1}: The quick brown fox jumps over the lazy dog. Estimate 2025-${page}.`, 12, 690 - k * 22, true),
+        ),
+      ];
+    }
+    case "close_pdf":
+      return null;
+    case "save_pdf": {
+      const r = a.request as { path: string; pages: PageSpec[] };
+      console.info("save_pdf (mock)", r);
+      return { path: r.path, size: 12345, backup: null };
+    }
+    case "compose_pdf": {
+      // The sample again, as many pages as asked for (no annotations drawn).
+      const r = a.request as { pages: PageSpec[] };
+      return Array.from(samplePdf(Math.max(1, r.pages.length)));
+    }
+    case "add_image":
+      throw "ブラウザ版ではファイルを読めません。画像は貼り付けてください";
+    case "add_image_bytes":
+      return imageInfo(args as unknown as Uint8Array);
+    case "image_bytes": {
+      const img = images.get(Number(a.id));
+      if (!img) throw "画像が見つかりません";
+      return Array.from(img.bytes);
+    }
+    case "list_stamps":
+      return [...stamps.values()].map(({ id, name }) => ({ id, name }));
+    case "add_stamp":
+      throw "ブラウザ版ではファイルを読めません";
+    case "add_stamp_bytes": {
+      const img = await imageInfo(args as unknown as Uint8Array);
+      const id = `${String(stamps.size + 1).padStart(4, "0")}_署名.png`;
+      stamps.set(id, { id, name: "署名", img });
+      return { id, name: "署名" };
+    }
+    case "remove_stamp":
+      stamps.delete(String(a.id));
+      return null;
+    case "use_stamp": {
+      const s = stamps.get(String(a.id));
+      if (!s) throw "スタンプが見つかりません";
+      return s.img;
+    }
+    case "write_draft": {
+      const r = a.request as { path: string; json: string };
+      const d = loadDrafts();
+      const id = Array.from(r.path).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16);
+      d[id] = { path: r.path, savedAt: Date.now(), json: r.json };
+      saveDrafts(d);
+      return id;
+    }
+    case "list_drafts":
+      return Object.entries(loadDrafts()).map(([id, d]) => ({ id, ...d, images: [] }));
+    case "remove_draft": {
+      const d = loadDrafts();
+      delete d[String(a.id)];
+      saveDrafts(d);
+      return null;
+    }
+    case "reveal_log":
+    case "reveal_backups":
+    case "reveal_file":
+      return null;
+    case "plugin:dialog|open":
+      return (a.options as { directory?: boolean })?.directory ? "/Users/sample/Documents" : ["/Users/sample/Documents/サンプル資料.pdf"];
+    case "plugin:dialog|save":
+      return (a.options as { defaultPath?: string })?.defaultPath ?? "/Users/sample/Documents/out.pdf";
+    case "plugin:dialog|message":
+      return "Ok";
+    case "plugin:dialog|ask":
+    case "plugin:dialog|confirm":
+      return true;
+    default:
+      return null;
+  }
 }
